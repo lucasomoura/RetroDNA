@@ -1,0 +1,16 @@
+[project]
+name = "retrodna"
+version = "0.1.0"
+description = "Game Design Reverse Engineering Platform"
+requires-python = ">=3.13"
+
+dependencies = [
+    "pydantic>=2.11",
+    "numpy>=2.3",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 88
