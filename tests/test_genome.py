@@ -1,13 +1,12 @@
-from packages.schema.genome import Gameplay, Genome
+from packages.schema.genome import Gameplay
 
 
 def test_gameplay_ratio():
-    genome = Genome(
-        gameplay=Gameplay(
-            exploration=0.72,
-            combat=0.28,
-        )
+    gameplay = Gameplay(
+        exploration=0.72,
+        combat=0.28,
+        objective_density=0.5,
+        enemy_density=0.3,
+        reward_frequency=0.4,
     )
-
-    assert 0 <= genome.gameplay.exploration <= 1
-    assert 0 <= genome.gameplay.combat <= 1
+    assert gameplay.exploration == 0.72
