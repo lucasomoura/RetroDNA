@@ -1,0 +1,1005 @@
+RETRODNA
+Engenharia Reversa de Game Design Retrô → Geração de Jogos Originais
+
+Versão 2 — Plano revisado
+
+======================================================================
+1. CONCEITO DO PROJETO
+======================================================================
+
+O RetroDNA será uma ferramenta capaz de analisar jogos retrô, inicialmente
+jogos de SNES, identificar padrões de design e transformar esses padrões em
+uma representação abstrata chamada DESIGN GENOME.
+
+O objetivo NÃO é copiar um jogo.
+
+O objetivo é descobrir características como:
+
+- ritmo de exploração;
+- ritmo de combate;
+- progressão;
+- distribuição de inimigos;
+- distribuição de objetivos;
+- frequência de recompensas;
+- estrutura de mapas;
+- caminhos alternativos;
+- gargalos;
+- curva de tensão;
+- comportamento dos inimigos;
+- estrutura das fases.
+
+Depois, o Design Genome será usado para gerar uma experiência NOVA.
+
+Exemplo:
+
+JOGO ORIGINAL
+      |
+      v
+OBSERVAÇÃO / ANÁLISE
+      |
+      v
+DESIGN GENOME
+      |
+      v
+GERADOR PROCEDURAL
+      |
+      v
+JOGO NOVO
+
+
+======================================================================
+2. PRINCÍPIO FUNDAMENTAL
+======================================================================
+
+O RetroDNA não deve tentar copiar o "bolo".
+
+Ele deve tentar descobrir a "receita".
+
+Exemplo:
+
+Em vez de:
+
+"Copie exatamente esta fase."
+
+O sistema deve descobrir:
+
+- duração média da exploração;
+- quantidade de combates;
+- distribuição dos inimigos;
+- distância entre objetivos;
+- frequência de recompensas;
+- intensidade dos encontros;
+- quantidade de rotas alternativas.
+
+Depois:
+
+"Crie uma nova fase que siga essas características."
+
+
+======================================================================
+3. PRIMEIRA CORREÇÃO IMPORTANTE:
+   NÃO COMEÇAR TENTANDO DECODIFICAR A ROM
+======================================================================
+
+A ideia inicial de:
+
+ROM → extrator → JSON
+
+parece simples, mas não é.
+
+Jogos de SNES normalmente utilizam estruturas próprias para:
+
+- mapas;
+- tiles;
+- objetos;
+- compressão;
+- ponteiros;
+- eventos;
+- gráficos;
+- colisões;
+- dados de gameplay.
+
+Cada jogo pode organizar essas informações de maneira completamente
+diferente.
+
+Portanto, não existe um "extrator universal de ROM de SNES" capaz de
+entender automaticamente todos os jogos.
+
+Ferramentas genéricas de imagem ou mapas não resolvem esse problema.
+
+Em muitos casos seria necessário:
+
+- engenharia reversa;
+- disassembly;
+- análise de memória;
+- identificação de ponteiros;
+- identificação de estruturas;
+- descoberta do algoritmo de compressão;
+- interpretação do código do jogo.
+
+Isso pode exigir semanas ou meses para um único jogo.
+
+
+======================================================================
+4. NOVA ESTRATÉGIA:
+   OBSERVAR O JOGO RODANDO
+======================================================================
+
+Em vez de começar tentando entender internamente cada ROM, o RetroDNA
+deve inicialmente observar o jogo em execução.
+
+Fluxo:
+
+ROM
+ |
+ v
+EMULADOR
+ |
+ +----> vídeo
+ |
+ +----> RAM
+ |
+ +----> eventos
+ |
+ +----> input
+ |
+ v
+ANALISADOR
+ |
+ v
+MÉTRICAS
+
+
+Emuladores com recursos de scripting/debugging, como Mesen ou BizHawk,
+podem permitir uma análise muito mais prática.
+
+
+======================================================================
+5. POR QUE ISSO É MELHOR PARA O MVP
+======================================================================
+
+Queremos que o RetroDNA seja capaz de analisar diferentes jogos.
+
+Se a ferramenta depender de engenharia reversa específica de cada ROM:
+
+Jogo A → código específico
+Jogo B → código específico
+Jogo C → código específico
+
+Isso destrói a generalidade do projeto.
+
+Com observação:
+
+Jogo A → observação
+Jogo B → observação
+Jogo C → observação
+
+A ferramenta pode trabalhar com um protocolo comum de observação.
+
+
+======================================================================
+6. O QUE PODEMOS MEDIR SEM ENTENDER A ROM
+======================================================================
+
+Dependendo do emulador e do jogo, podemos medir:
+
+- posição do jogador;
+- velocidade;
+- direção;
+- estado do jogador;
+- inimigos visíveis;
+- posições;
+- mortes;
+- dano;
+- disparos;
+- itens;
+- objetivos;
+- tempo;
+- mudanças de área;
+- eventos;
+- quantidade de inimigos;
+- frequência de combate.
+
+Nem tudo estará disponível automaticamente.
+
+Quando não estiver, podemos usar técnicas adicionais de análise.
+
+
+======================================================================
+7. ANÁLISE HÍBRIDA
+======================================================================
+
+O projeto não precisa escolher entre:
+
+A) engenharia reversa completa
+
+ou
+
+B) observação completa.
+
+Podemos utilizar as duas.
+
+PRIMEIRA CAMADA
+----------------
+Observação automática.
+
+Objetivo:
+obter métricas gerais e criar o Design Genome.
+
+SEGUNDA CAMADA
+--------------
+Análise de RAM.
+
+Objetivo:
+melhorar a precisão de determinadas métricas.
+
+TERCEIRA CAMADA
+---------------
+Engenharia reversa seletiva.
+
+Objetivo:
+entender informações específicas que não podem ser obtidas
+adequadamente pela observação.
+
+Isso evita fazer engenharia reversa completa de cada jogo.
+
+
+======================================================================
+8. DESIGN GENOME
+======================================================================
+
+O Design Genome será o coração do projeto.
+
+Ele precisa ser definido ANTES de construirmos o extrator.
+
+Ele será o contrato entre:
+
+- observação;
+- análise;
+- IA;
+- geração procedural;
+- Roblox;
+- futuras engines.
+
+
+======================================================================
+9. PRIMEIRA VERSÃO DO DESIGN GENOME
+======================================================================
+
+Exemplo conceitual:
+
+{
+    "gameplay": {
+        "exploration": 0.72,
+        "combat": 0.28,
+        "objective_density": 0.35,
+        "enemy_density": 0.34,
+        "reward_frequency": 0.41
+    },
+
+    "level_design": {
+        "average_area_size": 0.55,
+        "alternate_routes": 0.62,
+        "chokepoints": 0.31,
+        "open_area_frequency": 0.44
+    },
+
+    "pacing": {
+        "average_exploration_time": 38,
+        "average_combat_duration": 14,
+        "average_time_between_encounters": 52
+    },
+
+    "tension": {
+        "curve": [
+            0.20,
+            0.35,
+            0.70,
+            0.45,
+            0.80,
+            0.90,
+            0.40
+        ]
+    }
+}
+
+
+DEFINIÇÕES DE PACING (v2.1):
+- average_combat_duration: duração média de um encontro (início até fim).
+- average_exploration_time: tempo médio entre o FIM de um encontro e o INÍCIO do próximo.
+- average_time_between_encounters: tempo médio entre o INÍCIO de dois encontros seguidos.
+  Consistência obrigatória: between_encounters ≈ exploration_time + combat_duration
+  (no exemplo: 38 + 14 = 52; combate/(combate+exploração) = 0,27 ≈ combat 0,28).
+
+======================================================================
+10. UMA REGRA IMPORTANTE SOBRE A IA
+======================================================================
+
+A IA NÃO deve inventar métricas.
+
+Se o sistema mediu:
+
+average_combat_duration = 14 segundos
+
+a IA pode interpretar:
+
+"Os combates tendem a ser curtos."
+
+Ela não pode transformar isso em:
+
+"Os combates duram aproximadamente 20 segundos."
+
+sem uma fonte ou cálculo adicional.
+
+Separar:
+
+DADO
+INTERPRETAÇÃO
+HIPÓTESE
+
+será uma regra fundamental do RetroDNA.
+
+
+======================================================================
+11. PAPEL DA IA
+======================================================================
+
+A IA será principalmente responsável por:
+
+- interpretar dados;
+- encontrar padrões;
+- gerar relatórios;
+- identificar relações;
+- sugerir hipóteses;
+- transformar métricas em regras de design;
+- criar especificações para o gerador.
+
+Ela NÃO será a responsável primária por medir o jogo.
+
+
+======================================================================
+12. CURVA DE TENSÃO
+======================================================================
+
+A curva de tensão provavelmente será um dos elementos mais importantes
+do Design Genome.
+
+Porém, "tensão" não é uma variável diretamente disponível na RAM.
+
+Precisamos criar uma definição operacional.
+
+Inicialmente podemos usar indicadores como:
+
+- quantidade de inimigos;
+- proximidade de inimigos;
+- frequência de dano;
+- quantidade de projéteis;
+- quantidade de obstáculos;
+- tempo desde a última recompensa;
+- quantidade de objetivos ativos;
+- disponibilidade de rotas de fuga;
+- duração do combate.
+
+Esses fatores podem gerar um índice aproximado de tensão.
+
+Exemplo:
+
+Tensão =
+    inimigos
+  + proximidade
+  + risco
+  + duração do combate
+  - segurança
+  - recompensa
+
+
+A fórmula inicial será experimental.
+
+Depois poderá ser calibrada através de testes.
+
+
+======================================================================
+13. PRIMEIRO OBJETIVO DO PROJETO
+======================================================================
+
+Não é criar um jogo.
+
+É provar:
+
+"Consigo observar um jogo rodando e transformar sua experiência em
+dados estruturados."
+
+
+======================================================================
+14. PRIMEIRO EXPERIMENTO
+======================================================================
+
+Escolher UM jogo de teste.
+
+Não começar com Zombies Ate My Neighbors.
+
+Primeiro utilizar um jogo relativamente simples.
+
+Executar aproximadamente:
+
+5 a 10 minutos de gameplay.
+
+Coletar:
+
+- posição do jogador;
+- tempo;
+- eventos básicos;
+- inimigos;
+- combate;
+- mudanças de área.
+
+Gerar:
+
+metrics.json
+
+
+======================================================================
+15. PRIMEIRA SEMANA
+======================================================================
+
+Objetivo:
+
+Construir o primeiro observador.
+
+Passos:
+
+1. Instalar Python.
+2. Instalar Git.
+3. Escolher emulador.
+4. Escolher jogo de teste.
+5. Descobrir como acessar dados do emulador.
+6. Criar script de observação.
+7. Registrar eventos.
+8. Gerar JSON.
+9. Visualizar os dados.
+10. Validar manualmente.
+
+Resultado esperado:
+
+gameplay_session.json
+
+
+======================================================================
+16. SEGUNDA ETAPA
+======================================================================
+
+Transformar eventos em métricas.
+
+Exemplo:
+
+events:
+
+00:12 jogador entrou em combate
+00:16 inimigo morreu
+00:32 jogador encontrou item
+00:51 novo inimigo
+01:08 jogador sofreu dano
+
+O analisador calcula:
+
+- duração de combate;
+- intervalo entre combates;
+- frequência de dano;
+- frequência de recompensas;
+- densidade de inimigos.
+
+
+======================================================================
+17. TERCEIRA ETAPA
+======================================================================
+
+Criar o primeiro Design Genome.
+
+Exemplo:
+
+(usar o formato aninhado da seção 9; ver docs/design_genome_v0.md)
+
+
+======================================================================
+18. QUARTA ETAPA
+======================================================================
+
+Enviar o Genome para uma IA.
+
+A IA deverá produzir:
+
+1. relatório;
+2. padrões encontrados;
+3. hipóteses;
+4. recomendações para geração.
+
+Exemplo:
+
+"Este jogo apresenta períodos relativamente longos de exploração
+interrompidos por combates curtos e frequentes."
+
+
+======================================================================
+19. QUINTA ETAPA
+======================================================================
+
+Criar um gerador procedural simples.
+
+O gerador receberá:
+
+- Design Genome;
+- tamanho;
+- quantidade de áreas;
+- tema;
+- dificuldade.
+
+E produzirá:
+
+- salas;
+- corredores;
+- inimigos;
+- objetivos;
+- recompensas;
+- saída.
+
+
+======================================================================
+20. O PRIMEIRO MAPA PODE SER FEIO
+======================================================================
+
+Isso é importante.
+
+Não precisamos gerar:
+
+"um mapa bonito".
+
+Precisamos gerar:
+
+"um mapa funcional que respeita o Genome".
+
+Pode ser apenas:
+
+- quadrados;
+- paredes;
+- círculos;
+- linhas.
+
+Se o mapa funcionar, a parte visual vem depois.
+
+
+======================================================================
+21. SÓ DEPOIS ENTRA O ROBLOX
+======================================================================
+
+O Roblox será inicialmente apenas o destino de exportação.
+
+Isso é importante porque o Design Genome não pode depender do Roblox.
+
+Arquitetura:
+
+Genome
+ |
+ +--> Roblox
+ |
+ +--> Godot
+ |
+ +--> Unity
+ |
+ +--> protótipo 2D
+
+
+O projeto permanece independente da engine.
+
+
+======================================================================
+22. EXPORTAÇÃO PARA ROBLOX
+======================================================================
+
+O gerador produzirá:
+
+map.json
+enemies.json
+objectives.json
+items.json
+settings.json
+
+
+Um plugin ou sistema dentro do Roblox Studio poderá interpretar esses
+arquivos e criar:
+
+- Parts;
+- modelos;
+- spawns;
+- NPCs;
+- inimigos;
+- objetivos;
+- scripts.
+
+
+======================================================================
+23. ARTE
+======================================================================
+
+Sprites originais não serão utilizados como assets finais.
+
+O Roblox poderá utilizar:
+
+- Parts;
+- MeshParts;
+- modelos próprios;
+- materiais;
+- iluminação;
+- partículas;
+- animações;
+- assets licenciados;
+- modelos gerados especificamente para o novo jogo.
+
+
+======================================================================
+24. MÚSICA E SOM
+======================================================================
+
+O RetroDNA poderá analisar características musicais e sonoras, como:
+
+- BPM;
+- intensidade;
+- instrumentação;
+- duração;
+- estrutura;
+- função;
+- frequência de eventos sonoros.
+
+A saída deverá ser uma especificação para criação de conteúdo novo.
+
+Exemplo:
+
+{
+    "tempo": 125,
+    "energy": 0.72,
+    "mood": "horror_comedy",
+    "density": 0.60
+}
+
+Uma ferramenta de geração musical poderá então criar uma composição
+original baseada nessa especificação.
+
+
+======================================================================
+25. QUESTÃO DE DIREITOS AUTORAIS
+======================================================================
+
+O projeto deve ser desenvolvido com uma separação clara entre:
+
+MATERIAL DE ANÁLISE
+
+e
+
+CONTEÚDO FINAL.
+
+A ferramenta pode estudar características de um jogo, mas o resultado
+final deve ser criado como conteúdo novo.
+
+Não distribuir:
+
+- ROMs;
+- sprites originais;
+- mapas originais;
+- músicas originais;
+- efeitos sonoros originais;
+- personagens protegidos;
+- fases reconstruídas;
+- outros assets protegidos.
+
+Também não devemos presumir que qualquer técnica de extração ou uso
+é automaticamente permitida.
+
+A legislação aplicável pode variar conforme o país e o contexto.
+
+Para um produto comercial ou distribuição pública, será importante obter
+orientação jurídica específica.
+
+
+======================================================================
+26. O QUE O GENOME NÃO DEVE CONTER
+======================================================================
+
+Evitar armazenar:
+
+- sprites;
+- texturas originais;
+- música original;
+- áudio original;
+- mapas reconstruídos;
+- código original;
+- nomes protegidos;
+- conteúdo visual copiado.
+
+O Genome deve representar propriedades abstratas e métricas.
+
+
+======================================================================
+27. ARQUITETURA TÉCNICA
+======================================================================
+
+Backend:
+
+Python
+
+Dados:
+
+JSON inicialmente
+
+IA:
+
+API de modelo de linguagem
+
+Análise:
+
+Python + NumPy
+
+Visualização:
+
+matplotlib inicialmente
+
+Roblox:
+
+Luau + Roblox Studio
+
+Controle de versão:
+
+Git + GitHub
+
+
+======================================================================
+28. ESTRUTURA DO PROJETO
+======================================================================
+
+retrodna/
+
+    src/
+
+        observer/
+            emulator.py
+            memory.py
+            events.py
+
+        analyzer/
+            metrics.py
+            pacing.py
+            tension.py
+            progression.py
+
+        genome/
+            schema.py
+            validator.py
+
+        ai/
+            analyzer.py
+            reports.py
+
+        generator/
+            maps.py
+            enemies.py
+            objectives.py
+
+        exporters/
+            roblox.py
+
+    data/
+
+        input/
+
+        sessions/
+
+        analysis/
+
+        genomes/
+
+        generated/
+
+    roblox/
+
+        plugin/
+
+        scripts/
+
+    tests/
+
+    docs/
+
+    README.md
+
+
+======================================================================
+29. ROADMAP REVISADO
+======================================================================
+
+FASE 0
+Ambiente.
+
+FASE 1
+Design Genome.
+
+FASE 2
+Observador de gameplay.
+
+FASE 3
+Coleta de eventos.
+
+FASE 4
+Cálculo de métricas.
+
+FASE 5
+Curva de tensão.
+
+FASE 6
+IA Analyzer.
+
+FASE 7
+Design Genome completo.
+
+FASE 8
+Gerador procedural.
+
+FASE 9
+Validação automática.
+
+FASE 10
+Exportador Roblox.
+
+FASE 11
+Plugin Roblox.
+
+FASE 12
+Arte e assets.
+
+FASE 13
+Áudio.
+
+FASE 14
+Playtest automático.
+
+FASE 15
+Interface gráfica.
+
+
+======================================================================
+30. MVP REALISTA
+======================================================================
+
+O primeiro MVP deverá fazer SOMENTE:
+
+1. Abrir uma sessão de gameplay.
+2. Observar eventos.
+3. Registrar dados.
+4. Calcular algumas métricas.
+5. Criar um Genome.
+6. Pedir interpretação à IA.
+7. Gerar um mapa simples.
+8. Validar se o mapa respeita algumas métricas.
+
+Se isso funcionar:
+
+O RetroDNA existe.
+
+Todo o resto é expansão.
+
+
+======================================================================
+31. O QUE NÃO FAZER AGORA
+======================================================================
+
+Não começar com:
+
+- Roblox;
+- geração 3D;
+- música;
+- geração de personagens;
+- multiplayer;
+- interface gráfica sofisticada;
+- dezenas de jogos;
+- engenharia reversa completa;
+- geração automática de jogos inteiros.
+
+Primeiro provar o conceito.
+
+
+======================================================================
+32. META DE LONGO PRAZO
+======================================================================
+
+O objetivo final seria algo parecido com:
+
++--------------------------------------------------+
+|                    RETRODNA                      |
++--------------------------------------------------+
+|                                                  |
+|  Fonte: Gameplay / ROM                          |
+|                                                  |
+|  [ ANALISAR ]                                    |
+|                                                  |
+|  DESIGN GENOME                                   |
+|                                                  |
+|  Exploração       72%                            |
+|  Combate          28%                            |
+|  Densidade        34%                            |
+|  Rotas alternativas 62%                          |
+|                                                  |
+|  Curva de tensão                                |
+|  ▁▃▆▄▇█▄                                         |
+|                                                  |
+|  Tema: [ Horror / Sci-fi / Fantasia ]           |
+|                                                  |
+|  Engine: [ Roblox ]                             |
+|                                                  |
+|  [ GERAR ]                                       |
++--------------------------------------------------+
+
+
+======================================================================
+33. DEFINIÇÃO DO RETRODNA
+======================================================================
+
+RetroDNA não é:
+
+"uma IA que copia jogos antigos."
+
+RetroDNA é:
+
+"uma ferramenta de engenharia reversa de game design que observa,
+analisa e abstrai padrões de jogos existentes, transformando-os em
+um Design Genome capaz de orientar a geração procedural de novas
+experiências."
+
+
+======================================================================
+34. PRINCÍPIO FINAL
+======================================================================
+
+NÃO COPIAR O BOLO.
+
+NÃO COPIAR A FORMA DO BOLO.
+
+NÃO COPIAR OS INGREDIENTES DO BOLO.
+
+APRENDER A RECEITA.
+
+E usar essa receita como inspiração para criar outro bolo.
+
+
+======================================================================
+35. PRIMEIRO PASSO DO DESENVOLVIMENTO
+======================================================================
+
+Antes de escrever o primeiro extrator, vamos definir formalmente o
+Design Genome.
+
+Primeira tarefa:
+
+criar o arquivo:
+
+docs/design_genome_v0.md
+
+Nele serão definidos:
+
+- campos;
+- unidades;
+- escalas;
+- fórmulas;
+- fontes dos dados;
+- o que é medido;
+- o que é inferido;
+- o que é hipótese.
+
+Depois disso construiremos o primeiro observador.
+
+
+======================================================================
+FIM DO DOCUMENTO
+
+REGISTRO DE REVISÕES (v2.1)
+- Removida a cópia duplicada e o código Python residual.
+- Fórmula de tensão restaurada (soma de inimigos, proximidade, risco, duração; subtração de segurança e recompensa).
+- Pacing: exemplo corrigido (31 -> 52) e definições formais adicionadas.
+- Seção 17 agora aponta para o formato aninhado único da seção 9.
+- Passo 35 concluído: docs/design_genome_v0.md.

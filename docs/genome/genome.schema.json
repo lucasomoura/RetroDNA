@@ -1,0 +1,374 @@
+{
+  "$defs": {
+    "Archetype": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "speed_ratio": {
+          "minimum": 0,
+          "title": "Speed Ratio",
+          "type": "number"
+        },
+        "share": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Share",
+          "type": "number"
+        }
+      },
+      "required": [
+        "name",
+        "speed_ratio",
+        "share"
+      ],
+      "title": "Archetype",
+      "type": "object"
+    },
+    "Enemies": {
+      "additionalProperties": false,
+      "properties": {
+        "archetypes": {
+          "items": {
+            "$ref": "#/$defs/Archetype"
+          },
+          "minItems": 1,
+          "title": "Archetypes",
+          "type": "array"
+        }
+      },
+      "required": [
+        "archetypes"
+      ],
+      "title": "Enemies",
+      "type": "object"
+    },
+    "Gameplay": {
+      "additionalProperties": false,
+      "properties": {
+        "exploration": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Exploration",
+          "type": "number"
+        },
+        "combat": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Combat",
+          "type": "number"
+        },
+        "objective_density": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Objective Density"
+        },
+        "enemy_density": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Enemy Density",
+          "type": "number"
+        },
+        "reward_frequency": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Reward Frequency"
+        }
+      },
+      "required": [
+        "exploration",
+        "combat",
+        "objective_density",
+        "enemy_density",
+        "reward_frequency"
+      ],
+      "title": "Gameplay",
+      "type": "object"
+    },
+    "LevelDesign": {
+      "additionalProperties": false,
+      "properties": {
+        "average_area_size": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Average Area Size"
+        },
+        "alternate_routes": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Alternate Routes"
+        },
+        "chokepoints": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Chokepoints"
+        },
+        "open_area_frequency": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Open Area Frequency"
+        }
+      },
+      "required": [
+        "average_area_size",
+        "alternate_routes",
+        "chokepoints",
+        "open_area_frequency"
+      ],
+      "title": "LevelDesign",
+      "type": "object"
+    },
+    "Movement": {
+      "additionalProperties": false,
+      "properties": {
+        "player_speed_px_s": {
+          "minimum": 0,
+          "title": "Player Speed Px S",
+          "type": "number"
+        }
+      },
+      "required": [
+        "player_speed_px_s"
+      ],
+      "title": "Movement",
+      "type": "object"
+    },
+    "Pacing": {
+      "additionalProperties": false,
+      "properties": {
+        "average_exploration_time_s": {
+          "minimum": 0,
+          "title": "Average Exploration Time S",
+          "type": "number"
+        },
+        "average_combat_duration_s": {
+          "minimum": 0,
+          "title": "Average Combat Duration S",
+          "type": "number"
+        },
+        "average_time_between_encounters_s": {
+          "minimum": 0,
+          "title": "Average Time Between Encounters S",
+          "type": "number"
+        }
+      },
+      "required": [
+        "average_exploration_time_s",
+        "average_combat_duration_s",
+        "average_time_between_encounters_s"
+      ],
+      "title": "Pacing",
+      "type": "object"
+    },
+    "Raw": {
+      "additionalProperties": false,
+      "properties": {
+        "enemies_active_mean": {
+          "minimum": 0,
+          "title": "Enemies Active Mean",
+          "type": "number"
+        },
+        "objectives_per_min": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Objectives Per Min"
+        },
+        "rewards_per_min": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Rewards Per Min"
+        },
+        "encounters": {
+          "minimum": 0,
+          "title": "Encounters",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "enemies_active_mean",
+        "objectives_per_min",
+        "rewards_per_min",
+        "encounters"
+      ],
+      "title": "Raw",
+      "type": "object"
+    },
+    "Source": {
+      "additionalProperties": false,
+      "properties": {
+        "game": {
+          "title": "Game",
+          "type": "string"
+        },
+        "sessions": {
+          "minimum": 1,
+          "title": "Sessions",
+          "type": "integer"
+        },
+        "duration_s": {
+          "minimum": 0,
+          "title": "Duration S",
+          "type": "number"
+        }
+      },
+      "required": [
+        "game",
+        "sessions",
+        "duration_s"
+      ],
+      "title": "Source",
+      "type": "object"
+    },
+    "Tension": {
+      "additionalProperties": false,
+      "properties": {
+        "curve": {
+          "items": {
+            "maximum": 1,
+            "minimum": 0,
+            "type": "number"
+          },
+          "minItems": 2,
+          "title": "Curve",
+          "type": "array"
+        }
+      },
+      "required": [
+        "curve"
+      ],
+      "title": "Tension",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "genome_version": {
+      "const": "0.2",
+      "title": "Genome Version",
+      "type": "string"
+    },
+    "source": {
+      "$ref": "#/$defs/Source"
+    },
+    "movement": {
+      "$ref": "#/$defs/Movement"
+    },
+    "gameplay": {
+      "$ref": "#/$defs/Gameplay"
+    },
+    "level_design": {
+      "$ref": "#/$defs/LevelDesign"
+    },
+    "pacing": {
+      "$ref": "#/$defs/Pacing"
+    },
+    "tension": {
+      "$ref": "#/$defs/Tension"
+    },
+    "enemies": {
+      "$ref": "#/$defs/Enemies"
+    },
+    "raw": {
+      "$ref": "#/$defs/Raw"
+    },
+    "normalization": {
+      "additionalProperties": {
+        "type": "number"
+      },
+      "title": "Normalization",
+      "type": "object"
+    },
+    "provenance": {
+      "additionalProperties": {
+        "enum": [
+          "measured",
+          "inferred",
+          "hypothesis",
+          "unavailable"
+        ],
+        "type": "string"
+      },
+      "title": "Provenance",
+      "type": "object"
+    }
+  },
+  "required": [
+    "genome_version",
+    "source",
+    "movement",
+    "gameplay",
+    "level_design",
+    "pacing",
+    "tension",
+    "enemies",
+    "raw",
+    "normalization",
+    "provenance"
+  ],
+  "title": "Genome",
+  "type": "object"
+}

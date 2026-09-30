@@ -1,0 +1,19 @@
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+build/
+dist/
+out/
+sessions/
+# ROMs nunca entram no repositório
+*.sfc
+*.smc
+*.nes
+*.gb
+*.gbc
+*.gba
+*.zip
+*.7z

@@ -33,3 +33,54 @@ O projeto analisa jogos retrô, extrai padrões estruturais e gera um Design Gen
 - Extrair métricas de gameplay.
 - Gerar mapas procedurais.
 - Exportar para Roblox.
+
+## Como usar
+
+Requer Python 3.13.
+
+```bash
+pip install -e ".[dev]"
+
+# 1) Sem ROM: telemetria sintética -> genome -> mapa -> validação
+retrodna sample a.jsonl --seed 7
+retrodna sample b.jsonl --seed 11
+retrodna sample c.jsonl --seed 5
+retrodna pipeline a.jsonl b.jsonl c.jsonl --game Teste --theme humor --seed 3 --out out
+
+# 2) Automático com uma ROM (o Mesen roda sem interface e um bot joga)
+retrodna auto jogo.sfc --mesen /caminho/do/Mesen --sessions 3 --seconds 300 --out out
+
+# 3) Manual: gera o observador, você joga no Mesen, depois processa
+retrodna prepare --file sessao1.jsonl
+retrodna pipeline sessao1.jsonl --game NomeDoJogo
+
+pytest && ruff check .
+```
+
+Emulador: use o **MesenCE** (https://github.com/nesdev-org/MesenCE/releases). O repositório SourMesen/Mesen2
+foi arquivado em 2025.
+
+Saída em `out/`: `metrics.json`, `genome.json`, `report.md` (DADO / INTERPRETAÇÃO / HIPÓTESE),
+`llm_prompt.md`, `validation.md`, `roblox/`.
+
+## Estado
+
+| Parte | Situação |
+|---|---|
+| Genome v0.2 (pydantic), métricas, relatório, gerador, validador | implementado e testado |
+| Conversor OAM (jogador e inimigos sem endereços de RAM) | testado com simulação; **não** com um jogo real |
+| `retrodna auto` (Mesen `--testRunner`) | fluxo testado com um Mesen simulado; **execução headless real ainda não validada** |
+| Exportador Roblox, plugin e scripts Luau | implementados, congelados, sem teste no Studio |
+
+A validação do mapa confirma que o gerador cumpre as métricas do Genome; não prova que a experiência é parecida.
+A fórmula de tensão e os limiares precisam de calibração com gameplay real.
+
+## Documentação
+- [RFC 0001 — Design Genome](docs/RFC/0001-design-genome.md)
+- [RFC 0002 — Observer e telemetria](docs/RFC/0002-observer-events.md)
+- [Arquitetura](docs/architecture/overview.md) e [plano v2.1](docs/architecture/plano-v2.1.txt)
+- [JSON Schema do Genome](docs/genome/genome.schema.json)
+
+## Legal
+Nada do jogo original entra no Genome nem na saída. Não distribua ROMs.
+

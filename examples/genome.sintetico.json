@@ -1,0 +1,93 @@
+{
+  "genome_version": "0.2",
+  "source": {
+    "game": "exemplo-sintetico",
+    "sessions": 3,
+    "duration_s": 1079.7
+  },
+  "movement": {
+    "player_speed_px_s": 48.063
+  },
+  "gameplay": {
+    "exploration": 0.806,
+    "combat": 0.194,
+    "objective_density": 0.5,
+    "enemy_density": 0.38,
+    "reward_frequency": 0.556
+  },
+  "level_design": {
+    "average_area_size": 0.779,
+    "alternate_routes": 0.038,
+    "chokepoints": 0.679,
+    "open_area_frequency": null
+  },
+  "pacing": {
+    "average_exploration_time_s": 14.1,
+    "average_combat_duration_s": 5.133,
+    "average_time_between_encounters_s": 19.467
+  },
+  "tension": {
+    "curve": [
+      0.052,
+      0.145,
+      0.051,
+      0.04,
+      0.143,
+      0.202,
+      0.131,
+      0.055
+    ]
+  },
+  "enemies": {
+    "archetypes": [
+      {
+        "name": "slow_chaser",
+        "speed_ratio": 0.5,
+        "share": 0.57
+      },
+      {
+        "name": "steady_pursuer",
+        "speed_ratio": 0.9,
+        "share": 0.16
+      },
+      {
+        "name": "fast_ambush",
+        "speed_ratio": 1.4,
+        "share": 0.26
+      }
+    ]
+  },
+  "raw": {
+    "enemies_active_mean": 3.04,
+    "objectives_per_min": 1.0,
+    "rewards_per_min": 2.223,
+    "encounters": 52
+  },
+  "normalization": {
+    "enemies_active_max": 8.0,
+    "objectives_per_min": 2.0,
+    "rewards_per_min": 4.0,
+    "area_diagonal_px": 300.0
+  },
+  "provenance": {
+    "movement.player_speed_px_s": "measured",
+    "gameplay.exploration": "measured",
+    "gameplay.combat": "measured",
+    "gameplay.objective_density": "measured",
+    "gameplay.enemy_density": "measured",
+    "gameplay.reward_frequency": "measured",
+    "level_design.average_area_size": "inferred",
+    "level_design.alternate_routes": "inferred",
+    "level_design.chokepoints": "inferred",
+    "level_design.open_area_frequency": "unavailable",
+    "pacing.average_exploration_time_s": "measured",
+    "pacing.average_combat_duration_s": "measured",
+    "pacing.average_time_between_encounters_s": "measured",
+    "tension.curve": "hypothesis",
+    "enemies.archetypes": "inferred",
+    "raw.enemies_active_mean": "measured",
+    "raw.objectives_per_min": "measured",
+    "raw.rewards_per_min": "measured",
+    "raw.encounters": "measured"
+  }
+}
