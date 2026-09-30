@@ -1,4 +1,4 @@
-from packages.schema.genome import Genome, Gameplay
+from packages.schema.genome import Gameplay, Genome
 
 
 def test_gameplay_ratio():
