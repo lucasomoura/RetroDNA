@@ -89,6 +89,12 @@ def main(argv=None):
     au.add_argument("--seconds", type=int, default=300)
     au.add_argument("--game", default=None)
     au.add_argument("--no-skip-title", action="store_true")
+    au.add_argument(
+        "--runner",
+        default="gui",
+        choices=auto.RUNNERS,
+        help="gui: abre o Mesen com ROM+script; testrunner: modo headless",
+    )
     _gen_args(au)
     pr = sub.add_parser(
         "prepare", help="gera o observador configurado para você jogar (modo manual)"
@@ -113,10 +119,20 @@ def main(argv=None):
         return 0
     if a.cmd == "prepare":
         auto.prepare(
-            a.lua, a.file, mode=a.mode, seconds=a.seconds, seed=1, skip_title=False
+            a.lua,
+            a.file,
+            mode=a.mode,
+            seconds=a.seconds,
+            seed=1,
+            skip_title=a.mode == "bot",
         )
+        who = "o bot joga sozinho" if a.mode == "bot" else "você joga"
         print(
-            f"gerado {a.lua}. Abra o jogo no Mesen, carregue este script no Script Window (habilite I/O), jogue e depois:\n  retrodna pipeline {a.file} --game NOME"
+            f"gerado {a.lua} ({who}). Passos:\n"
+            "  1. No Mesen: Configurações > aba 'Script Window' > marque "
+            "'Allow access to I/O and OS functions'.\n"
+            "  2. Abra a ROM, abra a janela de script, carregue este arquivo e clique em Run.\n"
+            f"  3. Depois: retrodna pipeline {a.file} --game NOME"
         )
         return 0
     if a.cmd == "validate":
@@ -140,6 +156,7 @@ def main(argv=None):
                     seed=i,
                     mode="bot",
                     skip_title=not a.no_skip_title,
+                    runner=a.runner,
                 )
             )
         gn = _genome_from(paths, a.game or Path(a.rom).stem, out)

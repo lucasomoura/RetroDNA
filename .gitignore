@@ -17,3 +17,9 @@ sessions/
 *.gba
 *.zip
 *.7z
+
+# telemetria gerada localmente (exemplos ficam em examples/)
+/*.jsonl
+*.jsonl.done
+*.mesen.log
+out_*/

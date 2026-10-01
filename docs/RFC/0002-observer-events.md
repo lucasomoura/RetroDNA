@@ -34,12 +34,18 @@ Modelos pydantic em `packages/schema/events.py`. `apps/observer/templates/mesen_
 exemplo que exige mapear endereços de RAM por jogo; `retrodna sample` gera telemetria sintética.
 
 ## Modos
-- `retrodna auto jogo.sfc --mesen <caminho>`: roda o MesenCE em modo `--testRunner` (sem interface) com um
-  **bot** que se move de forma pseudoaleatória, tenta passar da tela de título e ataca.
+- `retrodna auto jogo.sfc --mesen <caminho>`: abre o MesenCE (`--runner gui`, padrão) com a ROM e o script
+  como **argumentos posicionais**; um **bot** se move de forma pseudoaleatória, tenta passar da tela de título
+  e ataca. O script grava `<saida>.done` ao terminar e o Python fecha o Mesen. `--runner testrunner` usa o
+  modo `--testRunner`, que no MesenCE 2.2.1 inicia a interface e não executou o script nos testes feitos.
+- O MesenCE só aceita `--doNotSaveSettings`, `--enableStdout`, `--fullscreen`, `--loadLastSession`,
+  `--recordMovie`, `--testRunner` e `--update` (conferido no binário). **Não existem** `--luaScript` nem
+  `--allowLuaScriptIO`: o acesso a I/O é a opção "Allow access to I/O and OS functions" do Mesen.
 - `retrodna prepare`: gera o script configurado para **você** jogar (modo `human`) no Script Window.
 
 ## Riscos
 - O bot é um explorador ingênuo: pode não sair de menus nem chegar a áreas avançadas. O relatório mostra a
   duração e a confiança; sessões humanas são o caminho de referência.
-- O modo `--testRunner` foi conferido apenas na ajuda e na documentação embutida do MesenCE 2.2.1; a execução
-  headless real ainda precisa ser validada com um jogo (ver README, "Estado").
+- A API de scripts (nomes de eventos, `setInput`, `memType`) foi conferida na documentação embutida do MesenCE
+  2.2.1 e o observador roda contra uma API simulada (`tests/fixtures/mock_emu.lua`); falta validar com o
+  Mesen real e um jogo.

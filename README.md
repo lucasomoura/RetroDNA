@@ -60,6 +60,14 @@ pytest && ruff check .
 Emulador: use o **MesenCE** (https://github.com/nesdev-org/MesenCE/releases). O repositório SourMesen/Mesen2
 foi arquivado em 2025.
 
+**Uma vez só, antes do primeiro uso:** no Mesen, abra as configurações, aba **Script Window**, e marque
+**"Allow access to I/O and OS functions"**. Sem isso o script Lua não consegue gravar a telemetria. Essa opção é uma
+configuração do Mesen; não existe opção de linha de comando para ela.
+
+O `retrodna auto` abre o Mesen (janela visível) com a ROM e o script como argumentos, o bot joga em tempo real e o
+Python fecha o Mesen quando o script termina. A saída do Mesen fica em `sessions/*.mesen.log`.
+Se o Mesen abrir mas nada for gravado, o comando falha em ~45 s com o motivo provável.
+
 Saída em `out/`: `metrics.json`, `genome.json`, `report.md` (DADO / INTERPRETAÇÃO / HIPÓTESE),
 `llm_prompt.md`, `validation.md`, `roblox/`.
 
@@ -69,7 +77,7 @@ Saída em `out/`: `metrics.json`, `genome.json`, `report.md` (DADO / INTERPRETA�
 |---|---|
 | Genome v0.2 (pydantic), métricas, relatório, gerador, validador | implementado e testado |
 | Conversor OAM (jogador e inimigos sem endereços de RAM) | testado com simulação; **não** com um jogo real |
-| `retrodna auto` (Mesen `--testRunner`) | fluxo testado com um Mesen simulado; **execução headless real ainda não validada** |
+| `retrodna auto` | lançamento e observador Lua testados com um Mesen simulado (Lua 5.4 real); **ainda não validado com o Mesen real** |
 | Exportador Roblox, plugin e scripts Luau | implementados, congelados, sem teste no Studio |
 
 A validação do mapa confirma que o gerador cumpre as métricas do Genome; não prova que a experiência é parecida.
