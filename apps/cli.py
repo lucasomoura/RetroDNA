@@ -90,6 +90,12 @@ def main(argv=None):
     au.add_argument("--game", default=None)
     au.add_argument("--no-skip-title", action="store_true")
     au.add_argument(
+        "--gameplay-sprites",
+        type=int,
+        default=auto.DEFAULT_GAMEPLAY_SPRITES,
+        help="sprites visíveis a partir dos quais a tela conta como gameplay",
+    )
+    au.add_argument(
         "--runner",
         default="gui",
         choices=auto.RUNNERS,
@@ -105,6 +111,9 @@ def main(argv=None):
     pr.add_argument("--lua", default="observer.lua")
     pr.add_argument("--mode", default="human", choices=["human", "bot"])
     pr.add_argument("--seconds", type=int, default=0)
+    pr.add_argument(
+        "--gameplay-sprites", type=int, default=auto.DEFAULT_GAMEPLAY_SPRITES
+    )
     g = sub.add_parser("generate", help="genome.json -> mapa + validação")
     g.add_argument("genome")
     _gen_args(g)
@@ -125,6 +134,7 @@ def main(argv=None):
             seconds=a.seconds,
             seed=1,
             skip_title=a.mode == "bot",
+            gameplay_sprites=a.gameplay_sprites,
         )
         who = "o bot joga sozinho" if a.mode == "bot" else "você joga"
         print(
@@ -156,6 +166,7 @@ def main(argv=None):
                     seed=i,
                     mode="bot",
                     skip_title=not a.no_skip_title,
+                    gameplay_sprites=a.gameplay_sprites,
                     runner=a.runner,
                 )
             )
