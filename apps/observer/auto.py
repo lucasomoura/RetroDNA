@@ -41,7 +41,17 @@ def find_mesen(explicit=None):
     )
 
 
-def render(out_file, mode="bot", seconds=300, seed=1, skip_title=True):
+DEFAULT_GAMEPLAY_SPRITES = 12
+
+
+def render(
+    out_file,
+    mode="bot",
+    seconds=300,
+    seed=1,
+    skip_title=True,
+    gameplay_sprites=DEFAULT_GAMEPLAY_SPRITES,
+):
     s = TEMPLATE.read_text(encoding="utf-8")
     # caminho absoluto com barras normais (o Lua no Windows aceita)
     abs_out_path = Path(out_file).resolve().as_posix()
@@ -51,6 +61,7 @@ def render(out_file, mode="bot", seconds=300, seed=1, skip_title=True):
         "__SECONDS__": str(int(seconds)),
         "__SEED__": str(int(seed)),
         "__SKIP__": "true" if skip_title else "false",
+        "__GAMEPLAY_SPRITES__": str(int(gameplay_sprites)),
     }.items():
         s = s.replace(k, v)
     return s
@@ -103,6 +114,7 @@ def run_session(
     seed=1,
     mode="bot",
     skip_title=True,
+    gameplay_sprites=DEFAULT_GAMEPLAY_SPRITES,
     runner="gui",
     start_timeout=START_TIMEOUT,
     timeout=None,
@@ -127,6 +139,7 @@ def run_session(
             seconds=seconds,
             seed=seed,
             skip_title=skip_title,
+            gameplay_sprites=gameplay_sprites,
         )
         cmd = build_command(mesen, rom, lua, runner)
         cwd = (
@@ -175,6 +188,9 @@ if __name__ == "__main__":
     parser.add_argument("--mode", default="bot", choices=["bot", "human"])
     parser.add_argument("--seed", type=int, default=1)
     parser.add_argument("--runner", default="gui", choices=RUNNERS)
+    parser.add_argument(
+        "--gameplay-sprites", type=int, default=DEFAULT_GAMEPLAY_SPRITES
+    )
     args = parser.parse_args()
 
     mesen_bin = find_mesen(args.mesen)
@@ -187,6 +203,7 @@ if __name__ == "__main__":
         args.seconds,
         seed=args.seed,
         mode=args.mode,
+        gameplay_sprites=args.gameplay_sprites,
         runner=args.runner,
     )
     print("Sessão concluída com sucesso!")

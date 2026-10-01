@@ -93,10 +93,15 @@ A fórmula de tensão e os limiares precisam de calibração com gameplay real.
 Nada do jogo original entra no Genome nem na saída. Não distribua ROMs.
 
 ### Sobre o bot
-- Para passar de menus, o bot aperta **Start duas vezes** (título e seleção de personagem) em tempos fixos
-  (`apps/observer/templates/retrodna_observer.lua`). Essa sequência foi calibrada para um jogo; outros jogos
-  podem precisar de ajuste. Enquanto está nos menus o bot **não grava**, e a duração (`--seconds`) conta a partir
-  do início do gameplay.
-- Os testes com o Mesen simulado (`tests/test_auto.py`, exigem Lua instalado) verificam que o bot chama `setInput`
-  e que o campo `in` da telemetria não fica vazio.
-
+- **Menus:** enquanto a tela tem poucos sprites (título, seleção de personagem, password...), o bot **só aperta Start**,
+  em pulsos de 8 frames a cada 2,5 s, e nunca mexe o direcional nem aperta A/B. Não depende de tempo fixo.
+- **Gameplay:** quando a tela tem pelo menos `--gameplay-sprites` sprites visíveis (padrão 12) por 1 s seguido, o bot
+  começa a andar/atacar **e a gravar**. Se a contagem cair abaixo disso por 6 s (game over, menu, pausa), ele volta a
+  apertar Start e para de gravar. `--seconds` conta só o tempo gravado de gameplay.
+- Se o gameplay não for detectado em 120 s, a sessão termina com erro explicando como ajustar.
+- **Calibração (uma vez por jogo):** a cada ~2 s o script escreve `RDNA: sprites=N gameplay=...` no log
+  (`<saida>.mesen.log`, ou o painel de log da janela de script do Mesen). Veja o número em cada tela:
+  se os menus mostram menos sprites que o gameplay, o padrão serve. Senão, escolha um valor entre os dois, por exemplo
+  `retrodna auto ... --gameplay-sprites 25`.
+- Os testes com o Mesen simulado (`tests/test_auto.py`, exigem Lua instalado) cobrem: o bot chama `setInput`, só aperta
+  Start nos menus, não grava menus, volta ao menu após game over e desiste se nunca detectar gameplay.
