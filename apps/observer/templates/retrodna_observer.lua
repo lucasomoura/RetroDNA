@@ -58,6 +58,7 @@ local botInput = {
 -- Controle de transição da tela de título e seleção
 local startPhase = 0        -- 0: aguardando 1º START | 1: aguardando 2º START | 2: gameplay
 local startCoolDown = 0
+local playStart = nil      -- frame em que o gameplay começou (o bot só grava a partir daqui)
 
 local function updateBotState()
   for k in pairs(botInput) do botInput[k] = false end
@@ -80,6 +81,7 @@ local function updateBotState()
           botInput.start = true -- Mantém o START pressionado por 15 frames para garantir o registro
         else
           startPhase = 2 -- Confirmação enviada! Transiciona para o Gameplay
+          playStart = frame
           holdUntil = frame + 120 -- Aguarda 2s adicionais para o Level 1 carregar antes de andar
         end
       end
@@ -102,6 +104,15 @@ local function updateBotState()
   if frame % 150 < 4 then botInput.a = true end   -- Especial
 end
 
+-- o jogo lê o controle: aplica as teclas do bot neste instante.
+-- Sem este callback o bot NUNCA aperta nada (e o campo "in" da telemetria fica vazio).
+emu.addEventCallback(function()
+  if CONFIG.mode == "bot" then
+    updateBotState()
+    emu.setInput(botInput, 0)
+  end
+end, emu.eventType.inputPolled)
+
 local function finish()
   if finished then return end
   finished = true
@@ -117,7 +128,8 @@ local hex = {}
 emu.addEventCallback(function()
   if finished then return end
   frame = frame + 1
-  if frame % CONFIG.every == 0 then
+  local recording = CONFIG.mode ~= "bot" or not CONFIG.skip_title or playStart ~= nil
+  if recording and frame % CONFIG.every == 0 then
     local file = handle()
     if file then
       for i = 0, 543 do hex[i + 1] = string.format("%02x", emu.read(i, OAM, false)) end
@@ -136,7 +148,7 @@ emu.addEventCallback(function()
       file:flush()
     end
   end
-  if CONFIG.seconds > 0 and frame >= CONFIG.seconds * 60 then
+  if recording and CONFIG.seconds > 0 and frame - (playStart or 0) >= CONFIG.seconds * 60 then
     finish()
     if emu.exit then emu.exit(0) else emu.stop(0) end
   end

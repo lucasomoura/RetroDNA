@@ -101,6 +101,48 @@ def test_observer_runs_against_mocked_mesen(tmp_path):
     assert "snes.ppu.layers[0].hScrollLatch" not in rows[1]["sc"]
 
 
+def _mock_stats(stdout):
+    stats = dict(re.findall(r"(\w+)=(\S+)", stdout))
+    return int(stats["setInput"]), stats["start_frames"], int(stats["moves"])
+
+
+@pytest.mark.skipif(LUA is None, reason="interpretador Lua não instalado")
+def test_bot_actually_presses_buttons_and_skips_menus(tmp_path):
+    """Regressão: sem o callback inputPolled o bot não apertava nada e `in` ficava vazio."""
+    out = tmp_path / "o.jsonl"
+    lua = auto.prepare(tmp_path / "obs.lua", out, mode="bot", seconds=6, seed=3)
+    mock = Path(__file__).parent / "fixtures" / "mock_emu.lua"
+    r = subprocess.run(
+        [LUA, str(mock), str(lua)], capture_output=True, text=True, check=False
+    )
+    assert r.returncode == 0, r.stderr
+    set_input, start_frames, moves = _mock_stats(r.stdout)
+    assert set_input > 0, "o bot nunca chamou emu.setInput"
+    first_start, last_start = (int(x) for x in start_frames.split(","))
+    assert first_start >= 240 and last_start < 440  # dois Starts: título e seleção
+    assert moves > 0  # depois dos menus, anda
+    rows = [json.loads(line) for line in out.read_text().splitlines()][1:]
+    assert rows[0]["f"] > last_start  # título/seleção não são gravados
+    inputs = {r["in"] for r in rows}
+    assert any("left" in i or "right" in i or "up" in i or "down" in i for i in inputs)
+    assert len(inputs) > 1  # o input varia ao longo da sessão
+
+
+@pytest.mark.skipif(LUA is None, reason="interpretador Lua não instalado")
+def test_human_mode_never_sets_input_and_records_from_start(tmp_path):
+    out = tmp_path / "o.jsonl"
+    lua = auto.prepare(tmp_path / "obs.lua", out, mode="human", seconds=3, seed=1)
+    mock = Path(__file__).parent / "fixtures" / "mock_emu.lua"
+    r = subprocess.run(
+        [LUA, str(mock), str(lua)], capture_output=True, text=True, check=False
+    )
+    assert r.returncode == 0, r.stderr
+    set_input, _, _ = _mock_stats(r.stdout)
+    assert set_input == 0
+    rows = [json.loads(line) for line in out.read_text().splitlines()][1:]
+    assert rows[0]["f"] == 6 and len(rows) == 3 * 60 // 6
+
+
 @pytest.mark.skipif(LUA is None, reason="interpretador Lua não instalado")
 def test_observer_degrades_gracefully_without_io(tmp_path):
     out = tmp_path / "o.jsonl"

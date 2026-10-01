@@ -77,7 +77,7 @@ Saída em `out/`: `metrics.json`, `genome.json`, `report.md` (DADO / INTERPRETA�
 |---|---|
 | Genome v0.2 (pydantic), métricas, relatório, gerador, validador | implementado e testado |
 | Conversor OAM (jogador e inimigos sem endereços de RAM) | testado com simulação; **não** com um jogo real |
-| `retrodna auto` | lançamento e observador Lua testados com um Mesen simulado (Lua 5.4 real); **ainda não validado com o Mesen real** |
+| `retrodna auto` | validado pelo autor com o MesenCE 2.2.1 e um jogo real (bot joga e a telemetria é gravada); o conversor OAM ainda precisa de mais jogos |
 | Exportador Roblox, plugin e scripts Luau | implementados, congelados, sem teste no Studio |
 
 A validação do mapa confirma que o gerador cumpre as métricas do Genome; não prova que a experiência é parecida.
@@ -91,4 +91,12 @@ A fórmula de tensão e os limiares precisam de calibração com gameplay real.
 
 ## Legal
 Nada do jogo original entra no Genome nem na saída. Não distribua ROMs.
+
+### Sobre o bot
+- Para passar de menus, o bot aperta **Start duas vezes** (título e seleção de personagem) em tempos fixos
+  (`apps/observer/templates/retrodna_observer.lua`). Essa sequência foi calibrada para um jogo; outros jogos
+  podem precisar de ajuste. Enquanto está nos menus o bot **não grava**, e a duração (`--seconds`) conta a partir
+  do início do gameplay.
+- Os testes com o Mesen simulado (`tests/test_auto.py`, exigem Lua instalado) verificam que o bot chama `setInput`
+  e que o campo `in` da telemetria não fica vazio.
 
