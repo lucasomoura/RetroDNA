@@ -30,8 +30,12 @@ def find_mesen(explicit=None):
 
 def render(out_file, mode="bot", seconds=300, seed=1, skip_title=True):
     s = TEMPLATE.read_text(encoding="utf-8")
+    
+    # Converte para caminho absoluto e substitui contra-barras por barras normais
+    abs_out_path = Path(out_file).resolve().as_posix()
+    
     for k, v in {
-        "__OUT__": str(Path(out_file).resolve()).replace("\\", "/"),
+        "__OUT__": abs_out_path,
         "__MODE__": mode,
         "__SECONDS__": str(int(seconds)),
         "__SEED__": str(int(seed)),
@@ -53,7 +57,7 @@ def run_session(
     Path(out_file).parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory() as d:
         lua = prepare(
-            Path(d) / "observer.lua",
+            Path(d) / "retrodna_observer.lua",
             out_file,
             mode=mode,
             seconds=seconds,
@@ -62,10 +66,11 @@ def run_session(
         )
         cmd = [
             mesen,
-            "--testRunner",
+            "--luaScript",
             str(lua),
             str(Path(rom).resolve()),
             "--doNotSaveSettings",
+            "--allowLuaScriptIO",  # Habilita acesso I/O do Lua sem pedir confirmação na GUI
         ]
         try:
             r = subprocess.run(
@@ -74,16 +79,60 @@ def run_session(
                 capture_output=True,
                 text=True,
                 check=False,
+                cwd=str(Path(mesen).parent),  # Define a pasta do Mesen como CWD
             )
             code = r.returncode
+            if code != 0:
+                print(f"\n--- STDOUT MESEN (Code {code}) ---\n{r.stdout}")
+                print(f"--- STDERR MESEN ---\n{r.stderr}")
         except subprocess.TimeoutExpired:
             code = None
-            print(
-                f"aviso: sessão excedeu o tempo; usando o que foi gravado em {out_file}",
-                file=sys.stderr,
-            )
     if not Path(out_file).exists() or Path(out_file).stat().st_size < 1000:
         raise RuntimeError(
             f"o Mesen não gravou dados em {out_file} (código {code}). Verifique a ROM, o caminho do Mesen e o acesso a I/O."
         )
     return out_file
+
+if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description="Executa o Mesen com o observador Lua."
+    )
+    parser.add_argument("--rom", required=True, help="Caminho para a ROM")
+    parser.add_argument("--mesen", help="Caminho para o executável do Mesen")
+    parser.add_argument(
+        "--out", default="output.json", help="Arquivo de saída das métricas"
+    )
+    parser.add_argument(
+        "--seconds",
+        type=int,
+        default=300,
+        help="Duração em segundos (padrão: 300)",
+    )
+    parser.add_argument(
+        "--mode", default="bot", help="Modo de execução (padrão: bot)"
+    )
+    parser.add_argument(
+        "--seed", type=int, default=1, help="Seed para o bot (padrão: 1)"
+    )
+
+    args = parser.parse_args()
+
+    # Busca o executável do Mesen se não for passado explicitamente
+    mesen_bin = find_mesen(args.mesen)
+
+    print(f"Iniciando sessão com o Mesen: {mesen_bin}")
+    print(f"ROM: {args.rom}")
+    print(f"Gravando métricas em: {args.out} ({args.seconds}s)...")
+
+    run_session(
+        mesen=mesen_bin,
+        rom=args.rom,
+        out_file=args.out,
+        seconds=args.seconds,
+        mode=args.mode,
+        seed=args.seed,
+    )
+
+    print("Sessão concluída com sucesso!")

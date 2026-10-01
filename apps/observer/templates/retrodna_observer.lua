@@ -1,85 +1,119 @@
--- RetroDNA Observer: captura SEM endereços de RAM (lê a tabela de sprites OAM + input + scroll).
--- Uso automático: `python -m retrodna auto jogo.sfc --mesen <caminho do Mesen>` (gera uma cópia configurada deste arquivo).
--- Uso manual: edite CONFIG, carregue no Script Window do Mesen, jogue, e passe o .jsonl ao `retrodna pipeline`.
+-- RetroDNA Observer: captura OAM + input + scroll
 local CONFIG = {
   out = "__OUT__",          -- caminho ABSOLUTO do arquivo de saída
-  mode = "__MODE__",        -- "bot" (joga sozinho) ou "human" (você joga)
-  seconds = __SECONDS__,    -- duração da sessão (segundos de jogo); 0 = até você parar
+  mode = "__MODE__",        -- "bot" ou "human"
+  seconds = __SECONDS__,    -- duração da sessão
   seed = __SEED__,
-  skip_title = __SKIP__,    -- bot: tenta passar da tela de título com Start/A nos primeiros segundos
-  every = 6,                -- frames entre amostras (~10 Hz a 60 fps)
+  skip_title = __SKIP__,    -- ignora tela inicial
+  every = 6,                -- amostragem a cada 6 frames
 }
 math.randomseed(CONFIG.seed)
 local OAM = emu.memType.snesSpriteRam
-local f = assert(io.open(CONFIG.out, "w"), "não abriu o arquivo de saída (habilite acesso a I/O e confira a pasta)")
 
--- botões existentes no controle (não presume nomes)
-local base = emu.getInput(0) or {}
-local has = {}
-for k, _ in pairs(base) do has[k] = true end
-if next(has) == nil then -- getInput pode omitir botões soltos: usa os nomes padrão do SNES
-  for _, k in ipairs({ "a", "b", "x", "y", "l", "r", "up", "down", "left", "right", "select", "start" }) do has[k] = true end
-end
-
--- chaves de scroll do PPU (câmera), descobertas em tempo de execução
-local scrollKeys = {}
-local okState, st = pcall(emu.getState)
-if okState and type(st) == "table" then
-  for k, v in pairs(st) do
-    local lk = string.lower(k)
-    if string.find(lk, "scroll", 1, true) and not string.find(lk, "latch", 1, true) and type(v) == "number" then
-      scrollKeys[#scrollKeys + 1] = k
+local f = nil
+local function getFileHandle()
+  if not f then
+    local file, err = io.open(CONFIG.out, "a")
+    if not file then
+      emu.displayMessage("RetroDNA ERRO", "Falha I/O: " .. tostring(err))
+      return nil
     end
+    f = file
   end
-  table.sort(scrollKeys)
+  return f
 end
-f:write(string.format('{"meta":{"source":"oam","mode":"%s","every":%d,"scroll_keys":%d}}\n', CONFIG.mode, CONFIG.every, #scrollKeys))
 
-local frame, held, holdUntil, lastInp = 0, {}, 0, {}
+-- Grava cabeçalho
+local fileInit = getFileHandle()
+if fileInit then
+  fileInit:write(string.format('{"meta":{"source":"oam","mode":"%s","every":%d}}\n', CONFIG.mode, CONFIG.every))
+  fileInit:flush()
+end
+
+local frame, held, holdUntil = 0, {}, 0
 local DIRS = { {}, { "up" }, { "down" }, { "left" }, { "right" }, { "up", "left" }, { "up", "right" }, { "down", "left" }, { "down", "right" } }
 
-emu.addEventCallback(function()
-  if CONFIG.mode ~= "bot" then return end
+-- Estrutura fixa de botões do P1
+local botInput = {
+  a = false, b = false, x = false, y = false,
+  l = false, r = false,
+  up = false, down = false, left = false, right = false,
+  select = false, start = false
+}
+
+local function updateBotState()
   if frame >= holdUntil then
     held = DIRS[math.random(#DIRS)]
     holdUntil = frame + math.random(20, 90)
   end
-  local inp = {}
-  for k, _ in pairs(has) do inp[k] = false end
-  for _, d in ipairs(held) do if has[d] then inp[d] = true end end
-  if has.y and frame % 24 < 6 then inp.y = true end                 -- ataque (varia por jogo)
-  if has.b and frame % 90 < 4 then inp.b = true end
-  if has.a and frame % 150 < 4 then inp.a = true end
-  if CONFIG.skip_title and frame < 900 and frame % 120 == 30 then
-    if has.start then inp.start = true end
-    if has.a then inp.a = true end
+
+  -- Limpa estado dos botões
+  for k in pairs(botInput) do
+    botInput[k] = false
   end
-  lastInp = inp
-  emu.setInput(inp, 0)
+
+  -- Aplica direcionais sorteados
+  for _, d in ipairs(held) do
+    botInput[d] = true
+  end
+
+  -- Pressiona botões de ação periodicamente
+  if frame % 24 < 6 then botInput.y = true end
+  if frame % 90 < 4 then botInput.b = true end
+  if frame % 150 < 4 then botInput.a = true end
+
+  -- Pula telas de título/menu nos primeiros segundos
+  if CONFIG.skip_title and frame < 1200 and frame % 60 < 20 then
+    botInput.start = true
+    botInput.a = true
+  end
+end
+
+-- Callback invocado no exato momento em que o jogo lê as portas do controlador
+emu.addEventCallback(function()
+  if CONFIG.mode == "bot" then
+    updateBotState()
+    emu.setInput(botInput, 0)
+  end
 end, emu.eventType.inputPolled)
 
 local hex = {}
 emu.addEventCallback(function()
   frame = frame + 1
+
   if frame % CONFIG.every == 0 then
     for i = 0, 543 do hex[i + 1] = string.format("%02x", emu.read(i, OAM, false)) end
-    local cur = (CONFIG.mode == "bot") and lastInp or (emu.getInput(0) or {})
+    
+    local cur = (CONFIG.mode == "bot") and botInput or (emu.getInput(0) or {})
     local pressed = {}
-    for k, v in pairs(cur) do if v == true then pressed[#pressed + 1] = k end end
-    table.sort(pressed)
-    local sc = ""
-    if #scrollKeys > 0 then
-      local s2 = emu.getState()
-      local parts = {}
-      for _, k in ipairs(scrollKeys) do parts[#parts + 1] = string.format('"%s":%d', k, s2[k] or 0) end
-      sc = ',"sc":{' .. table.concat(parts, ",") .. "}"
+    for k, v in pairs(cur) do 
+      if v == true then pressed[#pressed + 1] = k end 
     end
-    f:write(string.format('{"f":%d,"in":"%s","oam":"%s"%s}\n', frame, table.concat(pressed, ","), table.concat(hex), sc))
-    f:flush()
+    table.sort(pressed)
+
+    local file = getFileHandle()
+    if file then
+      file:write(string.format('{"f":%d,"in":"%s","oam":"%s"}\n', frame, table.concat(pressed, ","), table.concat(hex)))
+      file:flush()
+    end
   end
+
   if CONFIG.seconds > 0 and frame >= CONFIG.seconds * 60 then
-    f:close()
+    if f then
+      f:flush()
+      f:close()
+      f = nil
+    end
     if emu.exit then emu.exit(0) else emu.stop(0) end
   end
 end, emu.eventType.endFrame)
-emu.displayMessage("RetroDNA", "observador iniciado (" .. CONFIG.mode .. ")")
+
+emu.addEventCallback(function()
+  if f then
+    f:flush()
+    f:close()
+    f = nil
+  end
+end, emu.eventType.exit)
+
+emu.displayMessage("RetroDNA", "Modo Bot Ativo em: " .. CONFIG.out)
