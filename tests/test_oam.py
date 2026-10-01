@@ -4,6 +4,7 @@ import os
 import random
 import tempfile
 import unittest
+from pathlib import Path
 
 from apps.generator import generate, validate
 from apps.observer import auto
@@ -135,9 +136,8 @@ class OamTests(unittest.TestCase):
         )
 
     def test_render_observer_template(self):
-        s = auto.render(
-            "C:\\x\\a.jsonl", mode="bot", seconds=120, seed=4, skip_title=True
-        )
+        out = Path(tempfile.mkdtemp()) / "a.jsonl"
+        s = auto.render(out, mode="bot", seconds=120, seed=4, skip_title=True)
         self.assertNotIn("__", s)
-        self.assertIn("C:/x/a.jsonl", s)
+        self.assertIn(f'out = "{out.resolve().as_posix()}"', s)
         self.assertIn("seconds = 120", s)

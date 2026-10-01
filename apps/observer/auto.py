@@ -1,13 +1,25 @@
-"""Extração automatizada: roda o Mesen (modo --testRunner, sem interface) com o observador Lua."""
+"""Extração automatizada: abre o Mesen com a ROM e o observador Lua; o bot joga sozinho."""
 
 import os
 import shutil
 import subprocess
-import sys
 import tempfile
+import time
 from pathlib import Path
 
 TEMPLATE = Path(__file__).parent / "templates" / "retrodna_observer.lua"
+START_TIMEOUT = (
+    45  # s: sem arquivo de saída depois disso => ROM/script/I-O não funcionaram
+)
+RUNNERS = ("gui", "testrunner")
+# Opções de linha de comando que o MesenCE realmente aceita (conferido no binário 2.2.1).
+# Scripts .lua e a ROM entram como argumentos posicionais; não existem --luaScript nem
+# --allowLuaScriptIO. O acesso a I/O é uma configuração do Mesen, não uma opção de CLI.
+KNOWN_FLAGS = {"--doNotSaveSettings", "--enableStdout", "--testRunner"}
+IO_HINT = (
+    "Verifique no Mesen: Configurações > aba 'Script Window' > marque "
+    "'Allow access to I/O and OS functions'."
+)
 
 
 def find_mesen(explicit=None):
@@ -24,16 +36,15 @@ def find_mesen(explicit=None):
         if c and Path(c).is_file():
             return str(Path(c).resolve())
     raise FileNotFoundError(
-        "Mesen não encontrado. Baixe o MesenCE (github.com/nesdev-org/MesenCE/releases) e passe --mesen CAMINHO."
+        "Mesen não encontrado. Baixe o MesenCE "
+        "(github.com/nesdev-org/MesenCE/releases) e passe --mesen CAMINHO."
     )
 
 
 def render(out_file, mode="bot", seconds=300, seed=1, skip_title=True):
     s = TEMPLATE.read_text(encoding="utf-8")
-    
-    # Converte para caminho absoluto e substitui contra-barras por barras normais
+    # caminho absoluto com barras normais (o Lua no Windows aceita)
     abs_out_path = Path(out_file).resolve().as_posix()
-    
     for k, v in {
         "__OUT__": abs_out_path,
         "__MODE__": mode,
@@ -51,47 +62,103 @@ def prepare(lua_path, out_file, **kw):
     return lua_path
 
 
+def build_command(mesen, rom, lua, runner="gui"):
+    """`mesen` pode ser um caminho ou uma lista (prefixo do comando; útil em testes)."""
+    prefix = list(mesen) if isinstance(mesen, list | tuple) else [str(mesen)]
+    rom, lua = str(Path(rom).resolve()), str(lua)
+    if runner == "testrunner":
+        return [
+            *prefix,
+            "--testRunner",
+            lua,
+            rom,
+            "--doNotSaveSettings",
+            "--enableStdout",
+        ]
+    return [*prefix, rom, lua, "--doNotSaveSettings", "--enableStdout"]
+
+
+def _stop(proc):
+    if proc.poll() is None:
+        proc.terminate()
+        try:
+            proc.wait(10)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+
+
+def _log_tail(path, n=12):
+    try:
+        lines = Path(path).read_text(encoding="utf-8", errors="replace").splitlines()
+    except OSError:
+        return ""
+    return "\n".join(lines[-n:])
+
+
 def run_session(
-    mesen, rom, out_file, seconds=300, seed=1, mode="bot", skip_title=True, timeout=None
+    mesen,
+    rom,
+    out_file,
+    seconds=300,
+    seed=1,
+    mode="bot",
+    skip_title=True,
+    runner="gui",
+    start_timeout=START_TIMEOUT,
+    timeout=None,
 ):
-    Path(out_file).parent.mkdir(parents=True, exist_ok=True)
+    """Roda uma sessão. Espera o marcador `.done` do script e então fecha o Mesen.
+
+    runner="gui": abre o Mesen normalmente com a ROM e o script como argumentos.
+    runner="testrunner": usa `--testRunner` (modo headless anunciado pelo Mesen).
+    A saída do Mesen (inclui as linhas `RDNA:` do script) vai para `<out>.mesen.log`.
+    """
+    out = Path(out_file)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    done, log = Path(f"{out}.done"), Path(f"{out}.mesen.log")
+    for p in (out, done, log):
+        p.unlink(missing_ok=True)
+    limit = timeout or seconds * 6 + 120
     with tempfile.TemporaryDirectory() as d:
         lua = prepare(
             Path(d) / "retrodna_observer.lua",
-            out_file,
+            out,
             mode=mode,
             seconds=seconds,
             seed=seed,
             skip_title=skip_title,
         )
-        cmd = [
-            mesen,
-            "--luaScript",
-            str(lua),
-            str(Path(rom).resolve()),
-            "--doNotSaveSettings",
-            "--allowLuaScriptIO",  # Habilita acesso I/O do Lua sem pedir confirmação na GUI
-        ]
-        try:
-            r = subprocess.run(
-                cmd,
-                timeout=timeout or seconds * 6 + 120,
-                capture_output=True,
-                text=True,
-                check=False,
-                cwd=str(Path(mesen).parent),  # Define a pasta do Mesen como CWD
-            )
-            code = r.returncode
-            if code != 0:
-                print(f"\n--- STDOUT MESEN (Code {code}) ---\n{r.stdout}")
-                print(f"--- STDERR MESEN ---\n{r.stderr}")
-        except subprocess.TimeoutExpired:
-            code = None
-    if not Path(out_file).exists() or Path(out_file).stat().st_size < 1000:
+        cmd = build_command(mesen, rom, lua, runner)
+        cwd = (
+            Path(mesen).parent
+            if isinstance(mesen, str | Path) and Path(mesen).is_file()
+            else None
+        )
+        with open(log, "wb") as logf:
+            proc = subprocess.Popen(cmd, stdout=logf, stderr=subprocess.STDOUT, cwd=cwd)
+            started = time.monotonic()
+            try:
+                while not done.exists() and proc.poll() is None:
+                    elapsed = time.monotonic() - started
+                    if not out.exists() and elapsed > start_timeout:
+                        tail = _log_tail(log)
+                        raise RuntimeError(
+                            f"o Mesen não gravou nada em {start_timeout}s (runner={runner}). "
+                            f"{IO_HINT} Se a ROM não abriu, tente --runner "
+                            f"{'testrunner' if runner == 'gui' else 'gui'}."
+                            + (f"\n--- log do Mesen ---\n{tail}" if tail else "")
+                        )
+                    if elapsed > limit:
+                        break
+                    time.sleep(0.3)
+            finally:
+                _stop(proc)
+    if not out.exists() or out.stat().st_size < 1000:
         raise RuntimeError(
-            f"o Mesen não gravou dados em {out_file} (código {code}). Verifique a ROM, o caminho do Mesen e o acesso a I/O."
+            f"sessão sem dados em {out_file}. {IO_HINT}\n{_log_tail(log)}"
         )
     return out_file
+
 
 if __name__ == "__main__":
     import argparse
@@ -101,38 +168,25 @@ if __name__ == "__main__":
     )
     parser.add_argument("--rom", required=True, help="Caminho para a ROM")
     parser.add_argument("--mesen", help="Caminho para o executável do Mesen")
+    parser.add_argument("--out", default="sessao.oam.jsonl", help="Arquivo de saída")
     parser.add_argument(
-        "--out", default="output.json", help="Arquivo de saída das métricas"
+        "--seconds", type=int, default=300, help="Duração (padrão: 300)"
     )
-    parser.add_argument(
-        "--seconds",
-        type=int,
-        default=300,
-        help="Duração em segundos (padrão: 300)",
-    )
-    parser.add_argument(
-        "--mode", default="bot", help="Modo de execução (padrão: bot)"
-    )
-    parser.add_argument(
-        "--seed", type=int, default=1, help="Seed para o bot (padrão: 1)"
-    )
-
+    parser.add_argument("--mode", default="bot", choices=["bot", "human"])
+    parser.add_argument("--seed", type=int, default=1)
+    parser.add_argument("--runner", default="gui", choices=RUNNERS)
     args = parser.parse_args()
 
-    # Busca o executável do Mesen se não for passado explicitamente
     mesen_bin = find_mesen(args.mesen)
-
-    print(f"Iniciando sessão com o Mesen: {mesen_bin}")
-    print(f"ROM: {args.rom}")
-    print(f"Gravando métricas em: {args.out} ({args.seconds}s)...")
-
+    print(f"Iniciando sessão com o Mesen: {mesen_bin}\nROM: {args.rom}")
+    print(f"Gravando em: {args.out} ({args.seconds}s)...")
     run_session(
-        mesen=mesen_bin,
-        rom=args.rom,
-        out_file=args.out,
-        seconds=args.seconds,
-        mode=args.mode,
+        mesen_bin,
+        args.rom,
+        args.out,
+        args.seconds,
         seed=args.seed,
+        mode=args.mode,
+        runner=args.runner,
     )
-
     print("Sessão concluída com sucesso!")
