@@ -28,3 +28,6 @@ out_*/
 *.oam.jsonl
 *.oam.jsonl.*
 *.patch
+
+# pasta local do autor: ROM, Mesen e sessões (nunca vai ao GitHub)
+local/
