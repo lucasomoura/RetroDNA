@@ -19,11 +19,10 @@ NORMALIZATION = {
     "rewards_per_min": 4.0,
     "area_diagonal_px": 300.0,
 }
-DEFAULT_RATES = {"objectives_per_min": 1.0, "rewards_per_min": 2.0}
 PROVENANCE_KEYS = {
     "movement.player_speed_px_s": "measured",
-    "gameplay.exploration": "measured",
-    "gameplay.combat": "measured",
+    "gameplay.exploration": "inferred",  # proxy: complemento da proximidade
+    "gameplay.combat": "inferred",  # proxy: fração do tempo com inimigo a < NEAR px
     "gameplay.objective_density": "measured",
     "gameplay.enemy_density": "measured",
     "gameplay.reward_frequency": "measured",
@@ -114,6 +113,8 @@ class Genome(_Strict):
     raw: Raw
     normalization: dict[str, float]
     provenance: dict[str, Provenance]
+    # desvio padrão entre sessões (só existe com 2+ sessões): mostra o quanto o resultado varia
+    dispersion: dict[str, float] | None = None
 
     @model_validator(mode="after")
     def _consistency(self) -> "Genome":
@@ -137,9 +138,3 @@ def load(path: str | Path) -> dict:
 
 def save(g: dict, path: str | Path) -> None:
     Path(path).write_text(json.dumps(g, indent=2, ensure_ascii=False), encoding="utf-8")
-
-
-def rate(g: dict, key: str) -> float:
-    """Taxa por minuto; usa um padrão quando o dado é indisponível (eventos não observados)."""
-    v = g["raw"].get(key)
-    return DEFAULT_RATES[key] if v is None else v

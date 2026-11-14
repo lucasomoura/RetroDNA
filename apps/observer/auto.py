@@ -17,8 +17,8 @@ RUNNERS = ("gui", "testrunner")
 # --allowLuaScriptIO. O acesso a I/O é uma configuração do Mesen, não uma opção de CLI.
 KNOWN_FLAGS = {"--doNotSaveSettings", "--enableStdout", "--testRunner"}
 IO_HINT = (
-    "Verifique no Mesen: Configurações > aba 'Script Window' > marque "
-    "'Allow access to I/O and OS functions'."
+    "Ligue 'Allow access to I/O and OS functions' (janela Debugger Settings > aba Script Window > "
+    "Restrictions) ou rode `retrodna setup-mesen` com o Mesen fechado."
 )
 
 
@@ -41,7 +41,17 @@ def find_mesen(explicit=None):
     )
 
 
-def render(out_file, mode="bot", seconds=300, seed=1, skip_title=True):
+DEFAULT_GAMEPLAY_SPRITES = 12
+
+
+def render(
+    out_file,
+    mode="bot",
+    seconds=300,
+    seed=1,
+    skip_title=True,
+    gameplay_sprites=DEFAULT_GAMEPLAY_SPRITES,
+):
     s = TEMPLATE.read_text(encoding="utf-8")
     # caminho absoluto com barras normais (o Lua no Windows aceita)
     abs_out_path = Path(out_file).resolve().as_posix()
@@ -51,6 +61,7 @@ def render(out_file, mode="bot", seconds=300, seed=1, skip_title=True):
         "__SECONDS__": str(int(seconds)),
         "__SEED__": str(int(seed)),
         "__SKIP__": "true" if skip_title else "false",
+        "__GAMEPLAY_SPRITES__": str(int(gameplay_sprites)),
     }.items():
         s = s.replace(k, v)
     return s
@@ -103,6 +114,7 @@ def run_session(
     seed=1,
     mode="bot",
     skip_title=True,
+    gameplay_sprites=DEFAULT_GAMEPLAY_SPRITES,
     runner="gui",
     start_timeout=START_TIMEOUT,
     timeout=None,
@@ -116,7 +128,8 @@ def run_session(
     out = Path(out_file)
     out.parent.mkdir(parents=True, exist_ok=True)
     done, log = Path(f"{out}.done"), Path(f"{out}.mesen.log")
-    for p in (out, done, log):
+    script_log = Path(f"{out}.log")
+    for p in (out, done, log, script_log):
         p.unlink(missing_ok=True)
     limit = timeout or seconds * 6 + 120
     with tempfile.TemporaryDirectory() as d:
@@ -127,6 +140,7 @@ def run_session(
             seconds=seconds,
             seed=seed,
             skip_title=skip_title,
+            gameplay_sprites=gameplay_sprites,
         )
         cmd = build_command(mesen, rom, lua, runner)
         cwd = (
@@ -141,7 +155,7 @@ def run_session(
                 while not done.exists() and proc.poll() is None:
                     elapsed = time.monotonic() - started
                     if not out.exists() and elapsed > start_timeout:
-                        tail = _log_tail(log)
+                        tail = _log_tail(script_log) or _log_tail(log)
                         raise RuntimeError(
                             f"o Mesen não gravou nada em {start_timeout}s (runner={runner}). "
                             f"{IO_HINT} Se a ROM não abriu, tente --runner "
@@ -155,7 +169,8 @@ def run_session(
                 _stop(proc)
     if not out.exists() or out.stat().st_size < 1000:
         raise RuntimeError(
-            f"sessão sem dados em {out_file}. {IO_HINT}\n{_log_tail(log)}"
+            f"sessão sem dados em {out_file}. {IO_HINT}\n"
+            f"{_log_tail(script_log) or _log_tail(log)}"
         )
     return out_file
 
@@ -175,6 +190,9 @@ if __name__ == "__main__":
     parser.add_argument("--mode", default="bot", choices=["bot", "human"])
     parser.add_argument("--seed", type=int, default=1)
     parser.add_argument("--runner", default="gui", choices=RUNNERS)
+    parser.add_argument(
+        "--gameplay-sprites", type=int, default=DEFAULT_GAMEPLAY_SPRITES
+    )
     args = parser.parse_args()
 
     mesen_bin = find_mesen(args.mesen)
@@ -187,6 +205,7 @@ if __name__ == "__main__":
         args.seconds,
         seed=args.seed,
         mode=args.mode,
+        gameplay_sprites=args.gameplay_sprites,
         runner=args.runner,
     )
     print("Sessão concluída com sucesso!")

@@ -26,7 +26,7 @@ level_design{average_area_size,alternate_routes,chokepoints,open_area_frequency}
 pacing{average_exploration_time_s,average_combat_duration_s,average_time_between_encounters_s},
 tension{curve[8]}, enemies{archetypes[{name,speed_ratio,share}]},
 raw{enemies_active_mean,objectives_per_min,rewards_per_min,encounters},
-normalization{...}, provenance{"secao.campo": "measured|inferred|hypothesis|unavailable"}
+normalization{...}, dispersion{metrica: desvio_padrao}?, provenance{"secao.campo": "measured|inferred|hypothesis|unavailable"}
 ```
 JSON Schema gerado a partir do modelo: `docs/genome/genome.schema.json`.
 
@@ -35,8 +35,8 @@ JSON Schema gerado a partir do modelo: `docs/genome/genome.schema.json`.
 | Campo | Escala | Origem | Cálculo |
 |---|---|---|---|
 | movement.player_speed_px_s | px/s | measured | mediana do deslocamento por segundo do jogador |
-| gameplay.combat | 0–1 | measured | fração das amostras com inimigo a < 64 px |
-| gameplay.exploration | 0–1 | measured | 1 − combat |
+| gameplay.combat | 0–1 | inferred | proxy: fração das amostras com inimigo a < 64 px (proximidade, não combate real) |
+| gameplay.exploration | 0–1 | inferred | 1 − combat |
 | gameplay.enemy_density | 0–1 | measured | média de inimigos ativos / 8 |
 | gameplay.objective_density | 0–1 | measured | eventos `rescue` por min / 2 |
 | gameplay.reward_frequency | 0–1 | measured | eventos `item` por min / 4 |
@@ -52,6 +52,16 @@ JSON Schema gerado a partir do modelo: `docs/genome/genome.schema.json`.
 - `average_exploration_time_s`: **fim** de um encontro → **início** do próximo.
 - `average_time_between_encounters_s`: início → início.
 - Invariante: `between ≈ exploration + combat` (±30%), verificada em `packages/schema/validation.py`.
+- Com menos de 2 encontros, `exploration` e `between` valem a duração da sessão só como reserva e ficam `unavailable`;
+  sem nenhum encontro, `combat_duration` também. Na agregação, sessões sem encontros não entram na média desses campos.
+
+### Dispersão (opcional)
+`dispersion` guarda o desvio padrão entre sessões de velocidade, inimigos ativos, combate, duração de combate, exploração,
+intervalo entre encontros e encontros. Só existe com 2+ sessões e serve para ver se as sessões concordam antes de confiar na média.
+
+### Taxas padrão do gerador
+Objetivos e recompensas por minuto sem dado ficam `null`/`unavailable` no Genome. O gerador usa taxas padrão próprias
+(`apps/generator/rates.py`), e o validador marca essas checagens como `n/a` em vez de comparar com o padrão.
 
 ### Tensão (v0, experimental)
 Por amostra, limitada a [0, 1]:

@@ -23,3 +23,8 @@ sessions/
 *.jsonl.done
 *.mesen.log
 out_*/
+
+# sessões brutas do observador (podem conter dados derivados do jogo): nunca publicar
+*.oam.jsonl
+*.oam.jsonl.*
+*.patch

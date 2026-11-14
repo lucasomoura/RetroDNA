@@ -9,6 +9,20 @@ NAMES = {
 }
 
 
+def _mean_of(g, key):
+    """Valor agregado de uma métrica de dispersão, para comparar o desvio com a média."""
+    table = {
+        "player_speed": g["movement"]["player_speed_px_s"],
+        "enemies_active_mean": g["raw"]["enemies_active_mean"],
+        "combat_ratio": g["gameplay"]["combat"],
+        "combat_duration_s": g["pacing"]["average_combat_duration_s"],
+        "exploration_time_s": g["pacing"]["average_exploration_time_s"],
+        "encounter_interval_s": g["pacing"]["average_time_between_encounters_s"],
+        "encounters": g["raw"]["encounters"] / max(1, g["source"]["sessions"]),
+    }
+    return table.get(key)
+
+
 def report(g):
     P, G, tc = g["pacing"], g["gameplay"], g["tension"]["curve"]
     n = len(tc)
@@ -68,6 +82,7 @@ def report(g):
         "## HIPÓTESE (não verificado)",
         "",
         "- A curva de tensão usa uma fórmula experimental (v0); seus valores ainda não foram calibrados.",
+        "- `gameplay.combat`/`exploration` são um proxy de proximidade (inimigo a menos de 64 px), não combate real.",
         "- Métricas de level design (`inferred`) cobrem só as áreas visitadas na(s) sessão(ões).",
         f"- Com {g['source']['sessions']} sessão(ões), parte do ritmo reflete o comportamento do jogador, não só o design.",
     ]
@@ -75,6 +90,24 @@ def report(g):
         L.append(
             "- Recomenda-se agregar ao menos 3 sessões antes de confiar no Genome."
         )
+    disp = g.get("dispersion")
+    if disp:
+        L.append(
+            "- Variação entre sessões (desvio padrão): "
+            + ", ".join(f"{k} ±{v}" for k, v in disp.items())
+            + "."
+        )
+        wide = [
+            k
+            for k, v in disp.items()
+            if (mean := _mean_of(g, k)) and mean > 0 and v / mean > 0.5
+        ]
+        if wide:
+            L.append(
+                "- Variação alta (>50% da média) em "
+                + ", ".join(f"`{k}`" for k in wide)
+                + ": as sessões discordam, é preciso mais sessões."
+            )
     if g["provenance"].get("raw.rewards_per_min") == "unavailable":
         L.append(
             "- Eventos (dano, itens, objetivos) não foram observados: risco/recompensa da tensão valem 0 e o gerador usa taxas padrão."

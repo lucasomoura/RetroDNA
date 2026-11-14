@@ -3,8 +3,9 @@ level 'error' reprova o pipeline; 'warn' apenas alerta."""
 
 import statistics
 
-from packages.schema.genome import rate
 from packages.utils.stats import pearson
+
+from .rates import measured_rate
 
 
 def _reach(ids, adj, start, banned=None):
@@ -112,22 +113,24 @@ def validate_map(m, g):
             a <= b,
         )
 
-    want_n = round(rate(g, "objectives_per_min") * minutes)
-    add(
-        "objetivos (NPCs)",
-        want_n,
-        len(m["npcs"]),
-        abs(len(m["npcs"]) - want_n) <= 1,
-        note="tol ±1",
-    )
-    want_i = round(rate(g, "rewards_per_min") * minutes)
-    add(
-        "recompensas (itens)",
-        want_i,
-        len(m["items"]),
-        abs(len(m["items"]) - want_i) <= 1,
-        note="tol ±1",
-    )
+    # Sem taxa medida no Genome não há alvo: comparar com o padrão do gerador seria circular.
+    for name, key, count in (
+        ("objetivos (NPCs)", "objectives_per_min", len(m["npcs"])),
+        ("recompensas (itens)", "rewards_per_min", len(m["items"])),
+    ):
+        rate_g = measured_rate(g, key)
+        if rate_g is None:
+            add(
+                name,
+                "n/a",
+                count,
+                True,
+                "n/a",
+                "Genome sem dado: não validado (o gerador usou um padrão)",
+            )
+            continue
+        want = round(rate_g * minutes)
+        add(name, want, count, abs(count - want) <= 1, note="tol ±1")
 
     alt_t = g["level_design"]["alternate_routes"]
     if alt_t is not None:
@@ -181,6 +184,9 @@ def to_markdown(v):
         "|---|---|---|---|",
     ]
     for c in v["checks"]:
-        st = "ok" if c["ok"] else ("FALHA" if c["level"] == "error" else "aviso")
+        if c["level"] == "n/a":
+            st = "n/a"
+        else:
+            st = "ok" if c["ok"] else ("FALHA" if c["level"] == "error" else "aviso")
         L.append(f"| {c['check']} | {c['expected']} | {c['actual']} | {st} |")
     return "\n".join(L) + "\n"

@@ -3,7 +3,7 @@
 import random
 from collections import deque
 
-from packages.schema.genome import rate
+from .rates import rate
 
 W, H = 18, 22
 DIRS = {"N": (0, -1), "S": (0, 1), "W": (-1, 0), "E": (1, 0)}

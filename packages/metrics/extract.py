@@ -192,14 +192,40 @@ def extract(frames, segments=SEGMENTS, meta=None):
     return m
 
 
+# Métricas de ritmo só fazem sentido em sessões com encontros: sem eles, o extrator usa a duração
+# da sessão como valor de reserva, e esse valor não pode entrar na média.
+PACING_MIN_ENCOUNTERS = {
+    "combat_duration_s": 1,
+    "exploration_time_s": 2,
+    "encounter_interval_s": 2,
+}
+DISPERSION_KEYS = [
+    "player_speed",
+    "enemies_active_mean",
+    "combat_ratio",
+    "combat_duration_s",
+    "exploration_time_s",
+    "encounter_interval_s",
+    "encounters",
+]
+
+
 def aggregate(ms):
-    """Agrega várias sessões (média). Reduz o viés de uma única partida."""
+    """Agrega várias sessões (média) e mede a dispersão (desvio padrão) entre elas."""
     if len(ms) == 1:
         return ms[0]
     out = {}
     for k in SCALARS:
-        vals = [m[k] for m in ms if m.get(k) is not None]
+        need = PACING_MIN_ENCOUNTERS.get(k, 0)
+        vals = [m[k] for m in ms if m.get(k) is not None and m["encounters"] >= need]
+        if not vals and need:  # nenhuma sessão mediu: mantém o valor de reserva
+            vals = [m[k] for m in ms if m.get(k) is not None]
         out[k] = round(statistics.mean(vals), 3) if vals else None
+    out["dispersion"] = {
+        k: round(statistics.stdev(v), 3)
+        for k in DISPERSION_KEYS
+        if len(v := [m[k] for m in ms if m.get(k) is not None]) >= 2
+    }
     out["duration_s"] = round(sum(m["duration_s"] for m in ms), 1)
     out["encounters"] = int(sum(m["encounters"] for m in ms))
     out["tension_curve"] = [

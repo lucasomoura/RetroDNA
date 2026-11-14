@@ -26,6 +26,18 @@ def parse(hexstr):
     return out
 
 
+def visible_count(hexstr: str) -> int:
+    """Sprites visíveis na tela; mesma regra do observador Lua (y < 224, -16 < x < 256)."""
+    b = bytes.fromhex(hexstr)
+    n = 0
+    for i in range(128):
+        hi = b[512 + i // 4] >> ((i % 4) * 2)
+        x = b[4 * i] - (256 if hi & 1 else 0)
+        if b[4 * i + 1] < 224 and -16 < x < 256:
+            n += 1
+    return n
+
+
 def _corr(a, b):
     r = pearson(a, b) if len(a) >= 5 else None
     return 0.0 if r is None else r
