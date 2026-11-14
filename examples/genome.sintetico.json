@@ -6,36 +6,36 @@
     "duration_s": 1079.7
   },
   "movement": {
-    "player_speed_px_s": 48.063
+    "player_speed_px_s": 48.023
   },
   "gameplay": {
-    "exploration": 0.806,
-    "combat": 0.194,
-    "objective_density": 0.5,
-    "enemy_density": 0.38,
+    "exploration": 0.837,
+    "combat": 0.163,
+    "objective_density": 0.471,
+    "enemy_density": 0.335,
     "reward_frequency": 0.556
   },
   "level_design": {
-    "average_area_size": 0.779,
-    "alternate_routes": 0.038,
-    "chokepoints": 0.679,
+    "average_area_size": 0.817,
+    "alternate_routes": 0.044,
+    "chokepoints": 0.759,
     "open_area_frequency": null
   },
   "pacing": {
-    "average_exploration_time_s": 14.1,
-    "average_combat_duration_s": 5.133,
-    "average_time_between_encounters_s": 19.467
+    "average_exploration_time_s": 14.467,
+    "average_combat_duration_s": 3.7,
+    "average_time_between_encounters_s": 18.167
   },
   "tension": {
     "curve": [
-      0.052,
-      0.145,
-      0.051,
-      0.04,
-      0.143,
-      0.202,
-      0.131,
-      0.055
+      0.016,
+      0.153,
+      0.071,
+      0.062,
+      0.083,
+      0.124,
+      0.061,
+      0.078
     ]
   },
   "enemies": {
@@ -43,12 +43,12 @@
       {
         "name": "slow_chaser",
         "speed_ratio": 0.5,
-        "share": 0.57
+        "share": 0.63
       },
       {
         "name": "steady_pursuer",
         "speed_ratio": 0.9,
-        "share": 0.16
+        "share": 0.11
       },
       {
         "name": "fast_ambush",
@@ -58,10 +58,10 @@
     ]
   },
   "raw": {
-    "enemies_active_mean": 3.04,
-    "objectives_per_min": 1.0,
+    "enemies_active_mean": 2.677,
+    "objectives_per_min": 0.943,
     "rewards_per_min": 2.223,
-    "encounters": 52
+    "encounters": 56
   },
   "normalization": {
     "enemies_active_max": 8.0,
@@ -71,8 +71,8 @@
   },
   "provenance": {
     "movement.player_speed_px_s": "measured",
-    "gameplay.exploration": "measured",
-    "gameplay.combat": "measured",
+    "gameplay.exploration": "inferred",
+    "gameplay.combat": "inferred",
     "gameplay.objective_density": "measured",
     "gameplay.enemy_density": "measured",
     "gameplay.reward_frequency": "measured",
@@ -89,5 +89,14 @@
     "raw.objectives_per_min": "measured",
     "raw.rewards_per_min": "measured",
     "raw.encounters": "measured"
+  },
+  "dispersion": {
+    "player_speed": 0.015,
+    "enemies_active_mean": 0.764,
+    "combat_ratio": 0.042,
+    "combat_duration_s": 0.889,
+    "exploration_time_s": 1.25,
+    "encounter_interval_s": 1.85,
+    "encounters": 1.528
   }
 }

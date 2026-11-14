@@ -1,6 +1,7 @@
 """Lançamento do Mesen (apps/observer/auto.py) e do observador Lua, sem precisar do Mesen real."""
 
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -101,45 +102,112 @@ def test_observer_runs_against_mocked_mesen(tmp_path):
     assert "snes.ppu.layers[0].hScrollLatch" not in rows[1]["sc"]
 
 
-def _mock_stats(stdout):
-    stats = dict(re.findall(r"(\w+)=(\S+)", stdout))
-    return int(stats["setInput"]), stats["start_frames"], int(stats["moves"])
+def run_mock(tmp_path, env=None, **render_kwargs):
+    out = tmp_path / "o.jsonl"
+    kwargs = {"mode": "bot", "seconds": 6, "seed": 3, **render_kwargs}
+    lua = auto.prepare(tmp_path / "obs.lua", out, **kwargs)
+    mock = Path(__file__).parent / "fixtures" / "mock_emu.lua"
+    full_env = {**os.environ, **(env or {})}
+    r = subprocess.run(
+        [LUA, str(mock), str(lua)],
+        capture_output=True,
+        text=True,
+        env=full_env,
+        check=False,
+    )
+    assert r.returncode == 0, r.stderr
+    stats = dict(re.findall(r"(\w+)=(\S+)", r.stdout))
+    rows = [json.loads(line) for line in out.read_text().splitlines()][1:]
+    return stats, rows, r.stdout, out
+
+
+def _starts(stats):
+    first, last = (int(x) for x in stats["start_frames"].split(","))
+    return first, last
 
 
 @pytest.mark.skipif(LUA is None, reason="interpretador Lua não instalado")
-def test_bot_actually_presses_buttons_and_skips_menus(tmp_path):
+def test_bot_presses_buttons(tmp_path):
     """Regressão: sem o callback inputPolled o bot não apertava nada e `in` ficava vazio."""
-    out = tmp_path / "o.jsonl"
-    lua = auto.prepare(tmp_path / "obs.lua", out, mode="bot", seconds=6, seed=3)
-    mock = Path(__file__).parent / "fixtures" / "mock_emu.lua"
-    r = subprocess.run(
-        [LUA, str(mock), str(lua)], capture_output=True, text=True, check=False
-    )
-    assert r.returncode == 0, r.stderr
-    set_input, start_frames, moves = _mock_stats(r.stdout)
-    assert set_input > 0, "o bot nunca chamou emu.setInput"
-    first_start, last_start = (int(x) for x in start_frames.split(","))
-    assert first_start >= 240 and last_start < 440  # dois Starts: título e seleção
-    assert moves > 0  # depois dos menus, anda
-    rows = [json.loads(line) for line in out.read_text().splitlines()][1:]
-    assert rows[0]["f"] > last_start  # título/seleção não são gravados
-    inputs = {r["in"] for r in rows}
-    assert any("left" in i or "right" in i or "up" in i or "down" in i for i in inputs)
-    assert len(inputs) > 1  # o input varia ao longo da sessão
+    stats, rows, _, _ = run_mock(tmp_path)
+    assert int(stats["setInput"]) > 0 and int(stats["moves"]) > 0
+    assert len({r["in"] for r in rows}) > 1
+
+
+@pytest.mark.skipif(LUA is None, reason="interpretador Lua não instalado")
+def test_bot_only_presses_start_in_menus_then_plays(tmp_path):
+    """Regressão: com tempo fixo o bot mexia o direcional ainda no menu e caía em PASSWORD."""
+    stats, rows, _, _ = run_mock(tmp_path, env={"MENU_RANGES": "0-900"})
+    first_start, last_start = _starts(stats)
+    first_move = int(stats["first_move"])
+    assert first_move >= 900  # nenhum direcional enquanto a tela é de menu
+    assert last_start < first_move  # e nenhum Start depois que o jogo começou
+    assert rows[0]["f"] >= 900  # menus não são gravados
+    # vários pulsos de Start espaçados (o jogo pode demorar para aceitar o primeiro)
+    assert first_start <= 10 and last_start >= 750
+
+
+@pytest.mark.skipif(LUA is None, reason="interpretador Lua não instalado")
+def test_bot_returns_to_menu_phase_after_game_over(tmp_path):
+    env = {"MENU_RANGES": "0-300,900-2400", "CHECK": "2000-2400"}
+    stats, rows, _, _ = run_mock(tmp_path, env=env, seconds=30)
+    assert int(stats["check_moves"]) == 0  # parado no menu, sem andar
+    assert int(stats["check_starts"]) >= 1  # apertando Start para recomeçar
+    assert rows[-1]["f"] > 2400  # voltou a gravar depois
+
+
+@pytest.mark.skipif(LUA is None, reason="interpretador Lua não instalado")
+def test_boot_garbage_is_not_mistaken_for_gameplay(tmp_path):
+    """Dado real do ZAMN: a OAM do boot tem lixo (52 sprites 'visíveis' por ~1 s)."""
+    env = {"GARBAGE_UNTIL": "120", "MENU_RANGES": "120-900"}
+    stats, rows, _, _ = run_mock(tmp_path, env=env)
+    assert int(stats["first_move"]) >= 900
+    assert rows[0]["f"] >= 900
+
+
+@pytest.mark.skipif(LUA is None, reason="interpretador Lua não instalado")
+def test_oscillating_gameplay_is_detected_and_never_pauses(tmp_path):
+    """Dado real do ZAMN: ~20% das amostras de gameplay ficam abaixo do limite.
+    Antes, o bot exigia 1 s seguido acima do limite, demorava a perceber o jogo e batia Start (pausa)."""
+    stats, rows, _, _ = run_mock(tmp_path, env={"DIP_EVERY": "5"})
+    first_move, (_, last_start) = int(stats["first_move"]), _starts(stats)
+    assert first_move < 700  # detectou logo depois do aquecimento
+    assert last_start < first_move  # e nunca apertou Start dentro do jogo
+    assert (
+        rows[-1]["f"] - rows[0]["f"] >= 6 * 60 - 12
+    )  # gravou o tempo todo, sem sair do gameplay
+
+
+@pytest.mark.skipif(LUA is None, reason="interpretador Lua não instalado")
+def test_gameplay_threshold_is_configurable(tmp_path):
+    env = {"MENU_RANGES": "0-900"}  # menu com 3 sprites
+    low, _, _, _ = run_mock(tmp_path, env=env, gameplay_sprites=2)
+    assert (
+        300 <= int(low["first_move"]) < 450
+    )  # 3 >= 2: conta como gameplay (após o aquecimento)
+    default, _, _, _ = run_mock(tmp_path, env=env)
+    assert (
+        int(default["first_move"]) >= 900
+    )  # com o limite padrão (8), o menu não conta
+
+
+@pytest.mark.skipif(LUA is None, reason="interpretador Lua não instalado")
+def test_bot_gives_up_when_gameplay_is_never_detected(tmp_path):
+    env = {"MENU_RANGES": "0-100000000"}
+    stats, rows, stdout, out = run_mock(tmp_path, env=env)
+    assert rows == []  # nada foi gravado
+    assert "gameplay nao detectado" in stdout and "--gameplay-sprites" in stdout
+    assert Path(f"{out}.done").exists()
+    assert int(stats["moves"]) == 0
 
 
 @pytest.mark.skipif(LUA is None, reason="interpretador Lua não instalado")
 def test_human_mode_never_sets_input_and_records_from_start(tmp_path):
-    out = tmp_path / "o.jsonl"
-    lua = auto.prepare(tmp_path / "obs.lua", out, mode="human", seconds=3, seed=1)
-    mock = Path(__file__).parent / "fixtures" / "mock_emu.lua"
-    r = subprocess.run(
-        [LUA, str(mock), str(lua)], capture_output=True, text=True, check=False
-    )
-    assert r.returncode == 0, r.stderr
-    set_input, _, _ = _mock_stats(r.stdout)
-    assert set_input == 0
-    rows = [json.loads(line) for line in out.read_text().splitlines()][1:]
+    env = {
+        "MENU_RANGES": "0-300"
+    }  # humano grava tudo, inclusive menus; o script não decide nada
+    stats, rows, _, _ = run_mock(tmp_path, env=env, mode="human", seconds=3, seed=1)
+    assert int(stats["setInput"]) == 0
     assert rows[0]["f"] == 6 and len(rows) == 3 * 60 // 6
 
 
@@ -154,3 +222,13 @@ def test_observer_degrades_gracefully_without_io(tmp_path):
     )
     assert r.returncode == 0, r.stderr
     assert "I/O" in r.stdout and not out.exists()
+
+
+@pytest.mark.skipif(LUA is None, reason="interpretador Lua não instalado")
+def test_script_writes_its_own_log_with_sprite_counts(tmp_path):
+    """O stdout do Mesen pode não chegar ao Python: o script grava <saida>.log por conta própria."""
+    _, _, _, out = run_mock(tmp_path, env={"MENU_RANGES": "0-900"})
+    text = Path(f"{out}.log").read_text(encoding="utf-8")
+    assert "sprites=3 gameplay=false" in text  # menu: poucos sprites
+    assert "sprites=128 gameplay=true" in text  # gameplay: muitos sprites
+    assert "gameplay detectado" in text

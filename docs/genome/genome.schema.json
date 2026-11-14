@@ -354,6 +354,21 @@
       },
       "title": "Provenance",
       "type": "object"
+    },
+    "dispersion": {
+      "anyOf": [
+        {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Dispersion"
     }
   },
   "required": [

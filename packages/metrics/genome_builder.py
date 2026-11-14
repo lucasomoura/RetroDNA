@@ -45,10 +45,19 @@ def build_genome(m: dict, game: str = "unknown") -> dict:
         },
         "normalization": n,
     }
+    if m.get("dispersion"):
+        g["dispersion"] = m["dispersion"]
     prov = dict(PROVENANCE_KEYS)
     for key in prov:
         section, name = key.split(".")
         if name not in ("curve", "archetypes") and g[section].get(name) is None:
             prov[key] = "unavailable"
+    # Sem encontros suficientes o extrator usa a duração da sessão como reserva: isso não é medida.
+    enc = m["encounters"]
+    if enc < 2:
+        prov["pacing.average_exploration_time_s"] = "unavailable"
+        prov["pacing.average_time_between_encounters_s"] = "unavailable"
+    if enc < 1:
+        prov["pacing.average_combat_duration_s"] = "unavailable"
     g["provenance"] = prov
     return g

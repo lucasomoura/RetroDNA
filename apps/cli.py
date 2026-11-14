@@ -5,9 +5,9 @@ from pathlib import Path
 from apps.analyzer import report as analyze
 from apps.exporter import roblox
 from apps.generator import generate, validate
-from apps.observer import auto, sample
+from apps.observer import auto, calibrate, mesen_setup, sample
 from packages.events import telemetry
-from packages.metrics import aggregate, build_genome, extract
+from packages.metrics import aggregate, assess, build_genome, extract
 from packages.schema import genome
 
 
@@ -35,26 +35,66 @@ def _build(a, out, gn):
 
 
 def _genome_from(paths, game, out):
-    ms = []
+    ms, quality = [], []
     for t in paths:
         frames, meta = telemetry.load_with_meta(t)
         if meta.get("source") == "oam":
             print(
                 f"  {Path(t).name}: {len(frames)} amostras; confiança do jogador {meta['player_confidence']}; câmera {'ok' if meta['camera'] else 'NÃO detectada'}"
             )
-            if meta["player_confidence"] < 0.15:
-                print(
-                    "  aviso: jogador identificado com baixa confiança (poucos movimentos ligados ao input)."
-                )
-        ms.append(extract(frames, meta=meta))
+        m = extract(frames, meta=meta)
+        q = assess(frames, meta, m)
+        quality.append({"session": Path(t).name, **q})
+        if not q["accepted"]:
+            print(f"  REJEITADA {Path(t).name}: " + "; ".join(q["reasons"]))
+            continue
+        for w in q["warnings"]:
+            print(f"  aviso ({Path(t).name}): {w}")
+        ms.append(m)
+    (out / "quality.json").write_text(
+        json.dumps(quality, indent=2, ensure_ascii=False), encoding="utf-8"
+    )
+    if not ms:
+        raise SystemExit(
+            "nenhuma sessão passou no controle de qualidade (detalhes em quality.json)."
+        )
     m = aggregate(ms)
     (out / "metrics.json").write_text(json.dumps(m, indent=2), encoding="utf-8")
     gn = genome.validate(build_genome(m, game))
     genome.save(gn, out / "genome.json")
     (out / "report.md").write_text(analyze.report(gn), encoding="utf-8")
     (out / "llm_prompt.md").write_text(analyze.llm_prompt(gn), encoding="utf-8")
-    print(f"genome + relatório em {out} ({len(ms)} sessão(ões))")
+    print(
+        f"genome + relatório em {out} ({len(ms)} de {len(paths)} sessão(ões) aceitas)"
+    )
     return gn
+
+
+def _setup_mesen(a):
+    path = mesen_setup.find_settings(a.settings, a.mesen)
+    if path is None:
+        print(
+            "settings.json do Mesen não encontrado. Abra o Mesen uma vez, feche-o e rode de novo, "
+            "ou passe --settings CAMINHO. Procurado em:"
+        )
+        for p in mesen_setup.candidates(a.mesen)[:8]:
+            print(f"  {p}")
+        return 1
+    try:
+        changes = mesen_setup.enable_script_io(path)
+    except ValueError as exc:
+        print(exc)
+        return 1
+    if changes:
+        print(f"atualizado: {path} (backup em {path.name}.bak)")
+        for k, (before, after) in changes.items():
+            print(f"  {k}: {before} -> {after}")
+        print(
+            "Feche o Mesen antes de rodar isto, senão ele sobrescreve o arquivo ao sair."
+        )
+    else:
+        print(f"já estava configurado: {path}")
+    return 0
 
 
 def main(argv=None):
@@ -90,6 +130,12 @@ def main(argv=None):
     au.add_argument("--game", default=None)
     au.add_argument("--no-skip-title", action="store_true")
     au.add_argument(
+        "--gameplay-sprites",
+        type=int,
+        default=auto.DEFAULT_GAMEPLAY_SPRITES,
+        help="sprites visíveis a partir dos quais a tela conta como gameplay",
+    )
+    au.add_argument(
         "--runner",
         default="gui",
         choices=auto.RUNNERS,
@@ -105,6 +151,30 @@ def main(argv=None):
     pr.add_argument("--lua", default="observer.lua")
     pr.add_argument("--mode", default="human", choices=["human", "bot"])
     pr.add_argument("--seconds", type=int, default=0)
+    pr.add_argument(
+        "--gameplay-sprites", type=int, default=auto.DEFAULT_GAMEPLAY_SPRITES
+    )
+    ms = sub.add_parser(
+        "setup-mesen",
+        help="liga 'Allow access to I/O and OS functions' no settings.json do Mesen",
+    )
+    ms.add_argument(
+        "--settings", default=None, help="caminho do settings.json do Mesen"
+    )
+    ms.add_argument("--mesen", default=None, help="caminho do Mesen (modo portátil)")
+    cal = sub.add_parser(
+        "calibrate",
+        help="sugere --gameplay-sprites a partir de uma sessão jogada por você (modo human)",
+    )
+    cal.add_argument(
+        "session", help="arquivo .jsonl gravado com `prepare --mode human`"
+    )
+    cal.add_argument(
+        "--gameplay-from",
+        type=float,
+        default=None,
+        help="segundo (da sessão) em que o gameplay começou",
+    )
     g = sub.add_parser("generate", help="genome.json -> mapa + validação")
     g.add_argument("genome")
     _gen_args(g)
@@ -117,6 +187,16 @@ def main(argv=None):
         sample.make(a.out, seed=a.seed)
         print("telemetria gerada:", a.out)
         return 0
+    if a.cmd == "calibrate":
+        try:
+            res = calibrate.analyze(a.session, a.gameplay_from)
+        except ValueError as exc:
+            print(exc)
+            return 1
+        print(calibrate.format_report(res))
+        return 0 if res.get("separable", True) else 2
+    if a.cmd == "setup-mesen":
+        return _setup_mesen(a)
     if a.cmd == "prepare":
         auto.prepare(
             a.lua,
@@ -125,6 +205,7 @@ def main(argv=None):
             seconds=a.seconds,
             seed=1,
             skip_title=a.mode == "bot",
+            gameplay_sprites=a.gameplay_sprites,
         )
         who = "o bot joga sozinho" if a.mode == "bot" else "você joga"
         print(
@@ -156,6 +237,7 @@ def main(argv=None):
                     seed=i,
                     mode="bot",
                     skip_title=not a.no_skip_title,
+                    gameplay_sprites=a.gameplay_sprites,
                     runner=a.runner,
                 )
             )
