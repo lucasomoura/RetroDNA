@@ -100,6 +100,7 @@ A fórmula de tensão e os limiares precisam de calibração com gameplay real.
 - [RFC 0002 — Observer e telemetria](docs/RFC/0002-observer-events.md)
 - [Arquitetura](docs/architecture/overview.md) e [plano v2.1](docs/architecture/plano-v2.1.txt)
 - [JSON Schema do Genome](docs/genome/genome.schema.json)
+- [Lições do desenvolvimento com IA](docs/lessons-ai.md)
 - [Diário de desenvolvimento](docs/devlog/README.md) e [testes](docs/testing/README.md)
 - [Backlog e definição de pronto da v1.0](docs/backlog.md)
 - [Pesquisa sobre a ROM do ZAMN](docs/research/zamn-rom.md) e [brief da Fase 2](docs/fase2-brief.md)
